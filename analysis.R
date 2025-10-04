@@ -6,6 +6,9 @@ library(lubridate)
 library(ggpubr)
 library(multcompView) #for significant difference letters
 
+#### trial code ----
+
+
 flux_data <- readr::read_delim(
   here::here("Data", "Gas Flux Measurements", "gas-flux-29-09-2025.csv"))
 
@@ -41,7 +44,7 @@ model <- lm(`[CO2]d_ppm` ~ Time_sec, data = filtered_data)
 #the gradient of the slope (units ppm per second)
 summary(model)$coefficients["Time_sec", "Estimate"]
 
-#### Function to automatically trim flux data based on time segments - CO2 ----
+#### Analyse flux data based on time segments - CO2 - 29-09-2025 ----
 
 library(tidyverse)
 library(lubridate)
@@ -70,6 +73,8 @@ time_ranges <- time_ranges %>%
     end_datetime   = as.POSIXct(paste(Date, End),   format = "%d/%m/%Y %H:%M:%OS", tz = "UTC")
   )
 
+#add one minute to the start time so see if that improves r2
+time_ranges$start_datetime <- time_ranges$start_datetime + 25
 
 # --- Initialize list to store regression results ---
 results_list <- list()
@@ -90,10 +95,26 @@ for (i in 1:nrow(time_ranges)) {
     model <- lm(`[CO2]d_ppm` ~ Time_sec, data = data_chunk)
     slope <- coef(model)[["Time_sec"]]
     r_squared <- summary(model)$r.squared
+    
+    # Show plot if R^2 < 0.9
+    if (r_squared < 0.9) {
+      p <- ggplot(data_chunk, aes(x = Time_sec, y = `[CO2]d_ppm`)) +
+        geom_point(color = "blue") +
+        geom_smooth(method = "lm", se = FALSE, color = "red") +
+        labs(
+          title = paste("Low R²:", round(r_squared, 3), "| Sample:", sample_id),
+          x = "Time (sec)",
+          y = "[CO2] (ppm)"
+        ) +
+        theme_minimal()
+      
+      print(p)  # Important in non-interactive environments
+    }
   } else {
     slope <- NA
     r_squared <- NA
   }
+  
 
   
   # Store the result
@@ -109,9 +130,12 @@ for (i in 1:nrow(time_ranges)) {
 # --- Combine results into one data frame ---
 results_df <- bind_rows(results_list)
 
+
 # --- View or export ---
 print(results_df)
 
+#see spread of r2 values
+hist(results_df$r2)
 
 #append environmental factors 
 factors <- readr::read_delim(
@@ -178,13 +202,13 @@ print(cld)
 
 
 
-# Optional: write to CSV
+- # Optional: write to CSV
 # write_csv(results_df, "co2_slopes_output.csv")
 
 
   
 
-#### Function to automatically trim flux data based on time segments - CH4 ----
+#### Analyse flux data based on time segments - CH4 - 29-09-2025 ----
 
 library(tidyverse)
 library(lubridate)
@@ -201,6 +225,8 @@ flux_data <- flux_data %>%
   mutate(
     DateTime = as.POSIXct(paste(Date, Time), format = "%d/%m/%Y %H:%M:%OS", tz = "UTC")
   )
+
+
 # --- Load time ranges with sample IDs ---
 time_ranges <- readr::read_delim(
   here::here("Data", "Gas Flux Measurements", "measurement-times-29-09-2025.csv"))
@@ -212,6 +238,9 @@ time_ranges <- time_ranges %>%
     start_datetime = as.POSIXct(paste(Date, Start), format = "%d/%m/%Y %H:%M:%OS", tz = "UTC"),
     end_datetime   = as.POSIXct(paste(Date, End),   format = "%d/%m/%Y %H:%M:%OS", tz = "UTC")
   )
+
+#add one minute to the start time so see if that improves r2
+#time_ranges$start_datetime <- time_ranges$start_datetime + 60
 
 
 # --- Initialize list to store regression results ---
@@ -229,15 +258,43 @@ for (i in 1:nrow(time_ranges)) {
     mutate(Time_sec = as.numeric(DateTime - min(DateTime)))  # time relative to chunk start
   
   # Only run regression if enough data
+#  if (nrow(data_chunk) >= 2) {
+ #   model <- lm(`[CH4]d_ppm` ~ Time_sec, data = data_chunk)
+  #  slope <- coef(model)[["Time_sec"]]
+   # r_squared <- summary(model)$r.squared
+#  } else {
+ #   slope <- NA
+  #  r_squared <- NA
+  #}
+  # Only run regression if enough data
   if (nrow(data_chunk) >= 2) {
     model <- lm(`[CH4]d_ppm` ~ Time_sec, data = data_chunk)
     slope <- coef(model)[["Time_sec"]]
     r_squared <- summary(model)$r.squared
+    
+    # Show plot if R^2 < 0.9
+    if (r_squared < 0.9) {
+      p <- ggplot(data_chunk, aes(x = Time_sec, y = `[CH4]d_ppm`)) +
+        geom_point(color = "blue") +
+        geom_smooth(method = "lm", se = FALSE, color = "red") +
+        labs(
+          title = paste("Low R²:", round(r_squared, 3), "| Sample:", sample_id),
+          x = "Time (sec)",
+          y = "[CH4] (ppm)"
+        ) +
+        theme_minimal()
+      
+      print(p)  # Important in non-interactive environments
+    }
   } else {
     slope <- NA
     r_squared <- NA
   }
   
+  
+  
+  #show the plot if r2 < 0.9
+
   # Store the result
   results_list[[i]] <- tibble(
     sample_id = sample_id,
@@ -253,7 +310,7 @@ results_df <- bind_rows(results_list)
 
 # --- View or export ---
 print(results_df)
-
+hist(results_df$r2)
 
 #append environmental factors 
 factors <- readr::read_delim(
@@ -294,7 +351,7 @@ ch4_bxp <- ggboxplot(results_df, x = "Habitat", aes(y = `slope_ppm_per_sec`), co
 
 show(ch4_bxp)  
 #save our plot
-ggsave(path = "Figures", paste0(Sys.Date(), "_co2-ppm-per-sec.svg"), width = 10, height= 5, ch4_bxp)
+ggsave(path = "Figures", paste0(Sys.Date(), "_ch4-ppm-per-sec.svg"), width = 10, height= 5, ch4_bxp)
 
 #Type 1 two-way anova using data from all sites
 anova <- aov(results_df$slope_ppm_per_sec ~ results_df$Bracken*results_df$Habitat)
