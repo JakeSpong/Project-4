@@ -1042,3 +1042,124 @@ write_csv(results_df, "Processed Data/gas_flux_06-10-2025_slopes_output.csv")
 
 
 #### read in processed gas flux data, filter for data with r2 > 0.9, and do a master plot ----
+
+fluxes_29092025 <- read_csv("Processed Data/gas_flux_29-09-2025_slopes_output.csv")
+fluxes_01102025 <- read_csv("Processed Data/gas_flux_01-10-2025_slopes_output.csv")
+fluxes_03102025 <- read_csv("Processed Data/gas_flux_03-10-2025_slopes_output.csv")
+fluxes_06102025 <- read_csv("Processed Data/gas_flux_06-10-2025_slopes_output.csv")
+
+#combine the datasets
+#combine the datasets
+flux_data <- rbind(fluxes_29092025, fluxes_01102025,fluxes_03102025,fluxes_06102025)
+#filter for co2 r2 > 0.9
+results_df <- flux_data[flux_data$CO2_r2 >= 0.9,]
+
+#reorder the sites so they show up on the plot from west (LHS) to east (RHS)
+results_df$Bracken <- factor(results_df$Bracken, levels = c("Present", "Absent"))
+#reorder the habitats so they appear in the specified order
+results_df$Habitat <- factor(results_df$Habitat, levels = c("Grassland", "Heathland"))
+
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+co2_bxp <- ggboxplot(results_df, x = "Habitat", aes(y = `CO2 flux (micromol CO2 per s per m2)`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("CO"[2] * " rate (" * mu * "mol" ~ s^{-1} ~ m^{-2} * ")")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(co2_bxp)  
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_co2-flux_compiled.svg"), width = 10, height= 5, co2_bxp)
+
+#Type 1 two-way anova using data from all sites
+anova <- aov(results_df$CO2_slope ~ results_df$Bracken*results_df$Habitat)
+#check homogeneity of variance
+plot(anova, 1)
+#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
+leveneTest(d$pH ~ d$Vegetation*d$Site)
+#check normality.  
+plot(anova, 2)
+#conduct shapiro-wilk test on ANOVA residuals to test for normality
+#extract the residuals
+aov_residuals <- residuals(object = anova)
+#run shapiro-wilk test.  if p > 0.05 the data is normal
+shapiro.test(x = aov_residuals)
+
+summary(anova)
+#tukey's test to identify significant interactions
+tukey <- TukeyHSD(anova)
+#print(tukey)
+#compact letter display
+cld <- multcompLetters4(anova, tukey)
+print(cld)
+
+
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+ch4_bxp <- ggboxplot(results_df, x = "Habitat", aes(y = `CH4 flux (nmol CH4 per s per m2)`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("CH"[4] * " rate (" * "n" * "mol" ~ s^{-1} ~ m^{-2} * ")")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(ch4_bxp)  
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_ch4-flux_06-10-2025.svg"), width = 10, height= 5, co2_bxp)
+
+#Type 1 two-way anova using data from all sites
+anova <- aov(results_df$CH4_slope ~ results_df$Bracken*results_df$Habitat)
+#check homogeneity of variance
+plot(anova, 1)
+#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
+leveneTest(d$pH ~ d$Vegetation*d$Site)
+#check normality.  
+plot(anova, 2)
+#conduct shapiro-wilk test on ANOVA residuals to test for normality
+#extract the residuals
+aov_residuals <- residuals(object = anova)
+#run shapiro-wilk test.  if p > 0.05 the data is normal
+shapiro.test(x = aov_residuals)
+
+summary(anova)
+#tukey's test to identify significant interactions
+tukey <- TukeyHSD(anova)
+#print(tukey)
+#compact letter display
+cld <- multcompLetters4(anova, tukey)
+print(cld)
+
+
