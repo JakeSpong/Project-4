@@ -1816,11 +1816,212 @@ fluxes_29092025 <- read_csv("Processed Data/gas_flux_29-09-2025_slopes_output.cs
 fluxes_01102025 <- read_csv("Processed Data/gas_flux_01-10-2025_slopes_output.csv")
 fluxes_03102025 <- read_csv("Processed Data/gas_flux_03-10-2025_slopes_output.csv")
 fluxes_06102025 <- read_csv("Processed Data/gas_flux_06-10-2025_slopes_output.csv")
+fluxes_08102025 <- read_csv("Processed Data/gas_flux_08-10-2025_slopes_output.csv")
+fluxes_10102025 <- read_csv("Processed Data/gas_flux_10-10-2025_slopes_output.csv")
+fluxes_13102025 <- read_csv("Processed Data/gas_flux_13-10-2025_slopes_output.csv")
 
 #combine the datasets
 #combine the datasets
-flux_data <- rbind(fluxes_29092025, fluxes_01102025,fluxes_03102025,fluxes_06102025)
-#filter for co2 r2 > 0.9
+flux_data <- rbind(fluxes_29092025, fluxes_01102025,fluxes_03102025,fluxes_06102025, fluxes_08102025,fluxes_10102025,fluxes_13102025)
+
+#### plot average co2 and ch4 flux over time for each habitat ----
+#remove unnecessary columns from dataframe
+
+flux_timeseries <- flux_data[c(1,2, 12, 13, 28, 29)]
+
+#get the date only in one column
+flux_timeseries <- flux_timeseries %>%
+  mutate(date = as.Date(start_time))
+
+#group by date, Habitat, and Bracken, and calculate means
+flux_avg <- flux_timeseries %>%
+  group_by(date, Habitat, Bracken) %>%
+  summarise(
+    `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+
+# Create a combined grouping label
+flux_avg <- flux_avg %>%
+  mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
+
+# plot the co2 flux over time
+co2_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average CO2 flux`, color = Habitat_Bracken)) +
+  geom_line() +
+  geom_point()  +
+  geom_errorbar(
+    aes(ymin = `Average CO2 flux` - `SD CO2 flux`, 
+        ymax = `Average CO2 flux` + `SD CO2 flux`),
+    width = 0.2
+  ) +
+  labs(
+    title = "Average CO2 Flux Over Time by Habitat and Bracken Presence",
+    x = "Date",
+    y = expression("Mean CO"[2] * " flux (" * mu * "mol" ~ s^{-1} ~ m^{-2} * ")"),
+    color = "Group"
+  ) +
+  theme_minimal()
+#show the plot
+show(co2_avg_tms)
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_co2-flux-timeseries.svg"), width = 10, height= 5, co2_avg_tms)
+
+# plot the ch4 flux over time
+ch4_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average CH4 flux`, color = Habitat_Bracken)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(
+    aes(ymin = `Average CH4 flux` - `SD CH4 flux`, 
+        ymax = `Average CH4 flux` + `SD CH4 flux`),
+    width = 0.2
+  ) +
+  labs(
+    title = "Average CH4 Flux Over Time by Habitat and Bracken Presence",
+    x = "Date",
+    y =  expression("Mean CH"[4] * " flux (" * "n" * "mol" ~ s^{-1} ~ m^{-2} * ")"),
+    color = "Group"
+  ) +
+  theme_minimal()
+#show the boxplot
+show(ch4_avg_tms)
+
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_ch4-flux-timeseries.svg"), width = 10, height= 5, ch4_avg_tms)
+
+#linear regression to see if time affects gas fluxes
+
+#first we need to convert the date to days since the start of the experiment
+flux_avg <- flux_avg %>%
+  mutate(
+    days_since_start = as.numeric(date - min(date))
+  )
+
+#analyse effect of time (i.e. moisture loss) on average co2 flux
+lm_co2_time <- lm(`Average CO2 flux` ~ days_since_start*Habitat*Bracken, data = flux_avg)
+summary(lm_co2_time)
+
+#analyse effect of time (i.e. moisture loss) on average ch4 flux
+lm_ch4_time <- lm(`Average CH4 flux` ~ days_since_start*Habitat*Bracken, data = flux_avg)
+summary(lm_ch4_time)
+
+
+
+#### pool all time points and compare habitat types ----
+
+
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+co2_bxp_tms <- ggboxplot(flux_avg, x = "Habitat", aes(y = `Average CO2 flux`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("Mean CO"[2] * " flux (" * mu * "mol" ~ s^{-1} ~ m^{-2} * ")")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(co2_bxp_tms)  
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_co2-mean-flux_bxp.svg"), width = 10, height= 5, co2_bxp_tms)
+
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+ch4_bxp_tms <- ggboxplot(flux_avg, x = "Habitat", aes(y = `Average CH4 flux`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("Mean CH"[4] * " flux (" * "n" * "mol" ~ s^{-1} ~ m^{-2} * ")")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(ch4_bxp_tms)  
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_ch4-mean-flux_bxp.svg"), width = 10, height= 5, ch4_bxp_tms)
+
+#is there a different in fluxes between habitat types? - co2
+
+#Type 1 two-way anova using data from all sites
+anova <- aov(flux_avg$`Average CO2 flux` ~ flux_avg$Habitat*flux_avg$Bracken)
+#check homogeneity of variance
+plot(anova, 1)
+#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
+leveneTest(flux_avg$`Average CO2 flux` ~ flux_avg$Habitat*flux_avg$Bracken)
+#check normality.  
+plot(anova, 2)
+#conduct shapiro-wilk test on ANOVA residuals to test for normality
+#extract the residuals
+aov_residuals <- residuals(object = anova)
+#run shapiro-wilk test.  if p > 0.05 the data is normal
+shapiro.test(x = aov_residuals)
+
+summary(anova)
+#tukey's test to identify significant interactions
+tukey <- TukeyHSD(anova)
+#print(tukey)
+#compact letter display
+cld <- multcompLetters4(anova, tukey)
+print(cld)
+
+#is there a different in fluxes between habitat types? - ch4
+
+#Type 1 two-way anova using data from all sites
+anova <- aov(flux_avg$`Average CH4 flux` ~ flux_avg$Habitat*flux_avg$Bracken)
+#check homogeneity of variance
+plot(anova, 1)
+#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
+leveneTest(flux_avg$`Average CO2 flux` ~ flux_avg$Habitat*flux_avg$Bracken)
+#check normality.  
+plot(anova, 2)
+#conduct shapiro-wilk test on ANOVA residuals to test for normality
+#extract the residuals
+aov_residuals <- residuals(object = anova)
+#run shapiro-wilk test.  if p > 0.05 the data is normal
+shapiro.test(x = aov_residuals)
+
+summary(anova)
+#tukey's test to identify significant interactions
+tukey <- TukeyHSD(anova)
+#print(tukey)
+#compact letter display
+cld <- multcompLetters4(anova, tukey)
+print(cld)
+
+
+
+#### filter for co2 r2 > 0.9 ----
 results_df <- flux_data[flux_data$CO2_r2 >= 0.9,]
 
 #reorder the sites so they show up on the plot from west (LHS) to east (RHS)
