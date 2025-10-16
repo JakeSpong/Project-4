@@ -9,6 +9,65 @@ library(scales)
 library(dplyr)
 library(rlang)
 
+#### Lysate pH ----
+pH_lys <- read_csv("Data/Lysate pH.csv")
+
+#reorder the sites so they show up on the plot from west (LHS) to east (RHS)
+pH_lys$Bracken <- factor(pH_lys$Bracken, levels = c("Present", "Absent"))
+#reorder the habitats so they appear in the specified order
+pH_lys$Habitat <- factor(pH_lys$Habitat, levels = c("Rainfall", "Grassland", "Heathland"))
+
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+pH_lys_bxp <- ggboxplot(pH_lys, x = "Habitat", aes(y = `Lysate pH`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("Lysate pH")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(pH_lys_bxp)  
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_pH-lysate.svg"), width = 10, height= 5, pH_lys_bxp)
+
+#Type 1 two-way anova using data from all sites
+anova <- aov(pH_lys$`Lysate pH` ~ pH_lys$Bracken*pH_lys$Habitat)
+#check homogeneity of variance
+plot(anova, 1)
+#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
+leveneTest(d$pH ~ d$Vegetation*d$Site)
+#check normality.  
+plot(anova, 2)
+#conduct shapiro-wilk test on ANOVA residuals to test for normality
+#extract the residuals
+aov_residuals <- residuals(object = anova)
+#run shapiro-wilk test.  if p > 0.05 the data is normal
+shapiro.test(x = aov_residuals)
+
+summary(anova)
+#tukey's test to identify significant interactions
+tukey <- TukeyHSD(anova)
+#print(tukey)
+#compact letter display
+cld <- multcompLetters4(anova, tukey)
+print(cld)
+
 
 #### Analyse flux data based on time segments- 29-09-2025 ----
 
