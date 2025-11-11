@@ -5400,13 +5400,22 @@ results_df$Bracken <- factor(results_df$Bracken, levels = c("Present", "Absent")
 #reorder the habitats so they appear in the specified order
 results_df$Habitat <- factor(results_df$Habitat, levels = c("Grassland", "Heathland"))
 
+#this uses data from the entire experiment - should we instead split the data into before and after the rainfall application
 
-model <- glmmTMB(
-  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken + Habitat,
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat + (1|`Rainfall volume (ml)`),
   data = results_df,
   family = gaussian(link = "logit")
 )
-summary(model)
+summary(model_co2)
+
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat + (1|`Rainfall volume (ml)`),
+  data = results_df,
+  family = gaussian(link = "logit")
+)
+summary(model_ch4)
 
 
 # Helper function to extract model summary
@@ -5424,5 +5433,5 @@ extract_model_summary <- function(model, response_name) {
 }
 
 # Extract summaries for all models
-summary_model <- extract_model_summary(model, "CH4 flux (nmol CH4 per s per m2)")
+summary_model <- extract_model_summary(model_co2, "CO2 flux (micromol CO2 per s per m2)")
 summary_model
