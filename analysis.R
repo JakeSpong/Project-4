@@ -197,9 +197,9 @@ results_df <- results_df %>%
   left_join(factors, by = "sample_id")
 
 #calculate gas flux - co2
-results_df$`CO2 flux (micromol CO2 per s per m2)` <- results_df$CO2_slope*((results_df$`p (atm)`*results_df$`V (L)`)/(results_df$`A (m2)`*results_df$`R (L atm mol-1 K-1)`*results_df$`T (K)`))
+results_df$`CO2 flux (micromol CO2 per s per m2)` <- results_df$CO2_slope*((results_df$`p (atm)`*results_df$`V (L) no rhizons`)/(results_df$`A (m2)`*results_df$`R (L atm mol-1 K-1)`*results_df$`T (K)`))
 #calculate gas flux - ch4
-results_df$`CH4 flux (nmol CH4 per s per m2)` <- 1000*(results_df$CH4_slope*((results_df$`p (atm)`*results_df$`V (L)`)/(results_df$`A (m2)`*results_df$`R (L atm mol-1 K-1)`*results_df$`T (K)`)))
+results_df$`CH4 flux (nmol CH4 per s per m2)` <- 1000*(results_df$CH4_slope*((results_df$`p (atm)`*results_df$`V (L) no rhizons`)/(results_df$`A (m2)`*results_df$`R (L atm mol-1 K-1)`*results_df$`T (K)`)))
 
 
 #reorder the sites so they show up on the plot from west (LHS) to east (RHS)
@@ -5003,10 +5003,10 @@ write_csv(flux_data, "Processed Data/all_times_gas_fluxes.csv")
 
 #### plot average co2 and ch4 flux over time for each habitat ----
 #remove unnecessary columns from dataframe
-
+flux_data <- read_csv("Processed Data/all_times_gas_fluxes.csv")
 #remove data entries with p values < 0.05
 #flux_data <- flux_data[flux_data$CO2_p_value <= 0.05,]
-flux_timeseries <- flux_data[c(1,2, 12, 13, 28, 29)]
+flux_timeseries <- flux_data[c(1,2, 12, 13, 33, 34)]
 
 #get the date only in one column
 flux_timeseries <- flux_timeseries %>%
