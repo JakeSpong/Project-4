@@ -5074,6 +5074,249 @@ show(ch4_avg_tms)
 #save our plot
 ggsave(path = "Figures", paste0(Sys.Date(), "_ch4-flux-timeseries.svg"), width = 10, height= 5, ch4_avg_tms)
 
+#### Question 1: is there a difference in CO2 and CH4 fluxes between vegetation and habitat?? ----
+#remove unnecessary columns from dataframe
+flux_data <- read_csv("Processed Data/all_times_gas_fluxes.csv")
+#remove data entries with p values < 0.05
+#flux_data <- flux_data[flux_data$CO2_p_value <= 0.05,]
+flux_timeseries <- flux_data[c(1,2, 12, 13, 33, 34)]
+
+#get the date only in one column
+flux_timeseries <- flux_timeseries %>%
+  mutate(date = as.Date(start_time))
+#use all datapoints, not an everage
+# Create a combined grouping label
+flux_timeseries <- flux_timeseries %>%
+  mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
+#trim data to just pre-rainfall
+#load in the covaraites
+cov_data <- read_csv("Data/Covariates.csv")
+
+#append the covariate data to the respective sample ID 
+
+flux_timeseries <- flux_timeseries %>%
+  left_join(cov_data, by = "sample_id")
+
+#calculate actual soil moisture, not just relative change
+
+#load the data, format data correctly
+moisture_data <- read_csv("Data/Mesocosm Masses - Soil mass change as % of day 0.csv")
+moisture_data$date <- as.Date(moisture_data$Date, format = "%d/%m/%Y")
+#combine the two dataframes
+flux_timeseries <- left_join(flux_timeseries, moisture_data, by = c("sample_id", "date"))
+#new column containg actual soil moisture
+flux_timeseries$`Estimated soil moisture (% wet mass)` <- flux_timeseries$`Soil moisture (% wet mass)`*(flux_timeseries$`Soil Moisture (% day 0)`/100)
+
+flux_pre <- flux_timeseries %>%
+  filter(date < as.Date("2025-10-15"))
+
+
+library(glmmTMB)
+library(ggeffects)
+#check if soil moisture varies between habitat/bracken
+model_moist <- glmmTMB(
+  `Soil moisture (% wet mass)` ~ Bracken*Habitat  + (1|`Soil volume (m3)`),
+  data = flux_pre,
+  family = gaussian()
+)
+summary(model_moist)
+
+
+ggboxplot(flux_pre, x = "Habitat", aes(y = `Soil moisture (% wet mass)`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  "Soil Moisture (%)") + 
+  theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+
+#model whether methane and carbon dioxide flux change due to habitat, veg, with soil moisture and pH as random effects? 
+
+
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`) + (1|`Soil moisture (% wet mass)`),
+  data = flux_pre,
+  family = gaussian()
+)
+summary(model_co2)
+
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`) + (1|`Soil moisture (% wet mass)`),
+  data = flux_pre,
+  family = gaussian()
+)
+summary(model_ch4)
+
+#### Question 2: Is there a difference in fluxes between the simulated rainfall intensities ? ----
+#flux data after rainfall was added
+
+#assign a new variable, Pre/Post rainfall, to compare fluxes pre rainfall to fluxes post
+
+flux_post <-  flux_timeseries %>%
+  filter(date > as.Date("2025-10-15"))
+
+#is there a differnce in flux between rainfall intensities?
+
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat*`Rainfall Intensity (ml)`,
+  data = flux_post,
+  family = gaussian()
+)
+summary(model_co2)
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat*`Rainfall Intensity (ml)`,
+  data = flux_post,
+  family = gaussian()
+)
+summary(model_ch4)
+
+
+#see if there is a difference in moisture between treatments
+model_moist <- glmmTMB(
+  `Soil moisture (% wet mass)` ~ Bracken*Habitat  + (1|`Soil volume (m3)`),
+  data = flux_post,
+  family = gaussian()
+)
+summary(model_moist)
+
+
+ggboxplot(flux_post, x = "Habitat", aes(y = `Soil moisture (% wet mass)`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  "Soil Moisture (%)") + 
+  theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+#### Question 3: Is there a difference in fluxes before vs after extreme rainfall simulation? ----
+
+#assign a new variable, Pre/Post rainfall, to compare fluxes pre rainfall to fluxes post
+flux_timeseries <- flux_timeseries %>%
+  mutate(`pre/post` = if_else(date < as.Date("2025-10-15"),
+                              "pre",
+                              "post"))
+
+
+
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ `pre/post`*Bracken,
+  data = flux_timeseries,
+  family = gaussian()
+)
+summary(model_co2)
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ `pre/post`*Bracken,
+  data = flux_timeseries,
+  family = gaussian()
+)
+summary(model_ch4)
+
+#is this difference explained by a change in moisture?
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ `Estimated soil moisture (% wet mass)`,
+  data = flux_timeseries,
+  family = gaussian()
+)
+summary(model_co2)
+
+
+#is there a difference in mositure pre/post treatment?
+model_co2 <- glmmTMB(
+ `Soil Moisture (% day 0)` ~ `pre/post`,
+  data = flux_timeseries,
+  family = gaussian()
+)
+summary(model_co2)
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ `Soil Moisture (% day 0)`,
+  data = flux_timeseries,
+  family = gaussian()
+)
+summary(model_ch4)
+
+# plot the co2 flux over time
+
+#group by date, Habitat, and Bracken, and calculate means
+flux_avg <- flux_timeseries %>%
+  group_by(date, Habitat, Bracken) %>%
+  summarise(
+    `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    `Average Moisture` = mean(`Estimated soil moisture (% wet mass)`, na.rm = TRUE),
+    `SD Moisture` = sd(`Estimated soil moisture (% wet mass)`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Create a combined grouping label
+flux_avg <- flux_avg %>%
+  mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
+
+
+# plot the co2 flux over time
+moisture_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average Moisture`, color = Habitat_Bracken)) +
+  geom_line() +
+  geom_point()  +
+  geom_errorbar(
+    aes(ymin = `Average Moisture` - `SD Moisture`, 
+        ymax = `Average Moisture` + `SD Moisture`),
+    width = 0.2
+  ) +
+  labs(
+    title = "Average Soil Moisture Over Time by Habitat and Bracken Presence",
+    x = "Date",
+    y = expression("Estimated average soil moisture (% wet mass)"),
+    color = "Group"
+  ) + geom_vline(xintercept = as.numeric(as.Date("2025-10-14")), 
+                 linetype = "dashed", color = "blue", linewidth = 0.5) +
+  theme_minimal()
+#show the plot
+show(moisture_avg_tms)
+#save our plot
+ggsave(path = "Figures", paste0(Sys.Date(), "_mesocosm-moisture-timeseries.svg"), width = 10, height= 5, moisture_avg_tms)
+
+
+
+#### Old code ----
+
 #linear regression to see if time affects gas fluxes
 
 #first we need to convert the date to days since the start of the experiment
@@ -5324,72 +5567,6 @@ pwr.f2.test(k=4,f=.25,sig.level=.05,power=.8)
 #u = number of factors we have, f2 = R2/(1 - R2), 
 pwr.f2.test(u = 2,  f2 = 0.3/(1-0.3), sig.level = 0.05, power = 0.8)
 
-#### moisture loss over time ----
-
-#load in the dataframes, ensuring the dates are the same
-moisture_data <- read_csv("Data/Mesocosm Masses - Soil mass change as % of day 0.csv")
-moisture_data$Date <- as.Date(moisture_data$Date, format = "%d/%m/%Y")
-
-#gas flux data
-flux_data <- read_csv("Processed Data/all_times_gas_fluxes.csv")
-flux_data$Date <- as.Date(flux_data$start_time)
-#combine the two dataframes
-merged_df <- left_join(flux_data, moisture_data, by = c("sample_id", "Date"))
-
-# load factors and numbers needed for gas flux calculations
-factors <- readr::read_delim(
-  here::here("Data", "Gas Flux Measurements", "mesocosm_id_factors.csv"))
-
-# Choose only the columns you need from factors
-factors_subset <- factors %>%
-  select(sample_id, Rack, `Rainfall mix`, `Rainfall volume (ml)`)   # include SampleID for the join
-
-# Left join to keep all rows from results_df and add matching Habitat and Vegetation
-results_df <- merged_df %>%
-  left_join(factors_subset, by = "sample_id")
-
-flux_timeseries <- results_df[c(1, 30, 12, 13, 28, 29, 31)]
-
-#group by date, Habitat, and Bracken, and calculate means
-flux_avg <- flux_timeseries %>%
-  group_by(Date, Habitat, Bracken,) %>%
-  summarise(
-    `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
-    `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
-    `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
-    `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
-    `Average Moisture` = mean(`Soil Moisture (% day 0)`, na.rm = TRUE),
-    `SD Moisture` = sd(`Soil Moisture (% day 0)`, na.rm = TRUE),
-    .groups = 'drop'
-  )
-
-
-# Create a combined grouping label
-flux_avg <- flux_avg %>%
-  mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
-
-
-# plot the co2 flux over time
-moisture_avg_tms <- ggplot(flux_avg, aes(x = Date, y = `Average Moisture`, color = Habitat_Bracken)) +
-  geom_line() +
-  geom_point()  +
-  geom_errorbar(
-    aes(ymin = `Average Moisture` - `SD Moisture`, 
-        ymax = `Average Moisture` + `SD Moisture`),
-    width = 0.2
-  ) +
-  labs(
-    title = "Average Soil Moisture Over Time by Habitat and Bracken Presence",
-    x = "Date",
-    y = expression("Average soil moisture (% day 0 mesocosm mass)"),
-    color = "Group"
-  ) + geom_vline(xintercept = as.numeric(as.Date("2025-10-14")), 
-                 linetype = "dashed", color = "blue", linewidth = 0.5) +
-  theme_minimal()
-#show the plot
-show(moisture_avg_tms)
-#save our plot
-ggsave(path = "Figures", paste0(Sys.Date(), "_mesocosm-moisture-timeseries.svg"), width = 10, height= 5, moisture_avg_tms)
 
 #### model whether methane and carbon dioxide flux change due to habitat, veg, Soil moisture, rack, rainfall mix, rainfall volume ----
 library(glmmTMB)
