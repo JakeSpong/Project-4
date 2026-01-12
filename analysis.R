@@ -5151,7 +5151,7 @@ ggboxplot(flux_pre, x = "Habitat", aes(y = `Soil moisture (% wet mass)`), color 
 
 
 model_co2 <- glmmTMB(
-  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`) + (1|`Soil moisture (% wet mass)`),
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat*`Estimated soil moisture (% wet mass)` + (1|`Soil volume (m3)`),
   data = flux_pre,
   family = gaussian()
 )
@@ -5159,7 +5159,7 @@ summary(model_co2)
 
 
 model_ch4 <- glmmTMB(
-  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`) + (1|`Soil moisture (% wet mass)`),
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat*`Estimated soil moisture (% wet mass)` + (1|`Soil volume (m3)`),
   data = flux_pre,
   family = gaussian()
 )
@@ -5188,6 +5188,14 @@ model_ch4 <- glmmTMB(
   family = gaussian()
 )
 summary(model_ch4)
+
+#see if there is a difference in moisture between rainfall treatments
+model_moist <- glmmTMB(
+  `Estimated soil moisture (% wet mass)` ~ `Rainfall Intensity (ml)`*Bracken*Habitat  + (1|`Soil volume (m3)`),
+  data = flux_post,
+  family = gaussian()
+)
+summary(model_moist)
 
 
 #see if there is a difference in moisture between treatments
@@ -5232,33 +5240,23 @@ flux_timeseries <- flux_timeseries %>%
                               "post"))
 
 
-
 model_co2 <- glmmTMB(
-  `CO2 flux (micromol CO2 per s per m2)` ~ `pre/post`*Bracken,
+  `CO2 flux (micromol CO2 per s per m2)` ~ `pre/post`*Bracken*Habitat,
   data = flux_timeseries,
   family = gaussian()
 )
 summary(model_co2)
 
 model_ch4 <- glmmTMB(
-  `CH4 flux (nmol CH4 per s per m2)` ~ `pre/post`*Bracken,
+  `CH4 flux (nmol CH4 per s per m2)` ~ `pre/post`*Bracken*Habitat,
   data = flux_timeseries,
   family = gaussian()
 )
 summary(model_ch4)
 
-#is this difference explained by a change in moisture?
-model_co2 <- glmmTMB(
-  `CO2 flux (micromol CO2 per s per m2)` ~ `Estimated soil moisture (% wet mass)`,
-  data = flux_timeseries,
-  family = gaussian()
-)
-summary(model_co2)
-
-
 #is there a difference in mositure pre/post treatment?
 model_co2 <- glmmTMB(
- `Soil Moisture (% day 0)` ~ `pre/post`,
+ `Estimated soil moisture (% wet mass)` ~ `pre/post`,
   data = flux_timeseries,
   family = gaussian()
 )
