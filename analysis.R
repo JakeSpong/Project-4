@@ -4851,7 +4851,7 @@ results_df$`CO2 flux (micromol CO2 per s per m2)` <- results_df$CO2_slope*((resu
 results_df$`CH4 flux (nmol CH4 per s per m2)` <- 1000*(results_df$CH4_slope*((results_df$`p (atm)`*results_df$`V (L)`)/(results_df$`A (m2)`*results_df$`R (L atm mol-1 K-1)`*results_df$`T (K)`)))
 
 
-#reorder the sites so they show up on the plot from west (LHS) to east (RHS)
+#reorder the treatments
 results_df$Bracken <- factor(results_df$Bracken, levels = c("Present", "Absent"))
 #reorder the habitats so they appear in the specified order
 results_df$Habitat <- factor(results_df$Habitat, levels = c("Grassland", "Heathland"))
@@ -5110,6 +5110,10 @@ flux_timeseries$`Estimated soil moisture (% wet mass)` <- flux_timeseries$`Soil 
 flux_pre <- flux_timeseries %>%
   filter(date < as.Date("2025-10-15"))
 
+flux_post <- flux_timeseries %>%
+  filter(date > as.Date("2025-10-14"))
+
+
 
 library(glmmTMB)
 library(ggeffects)
@@ -5147,11 +5151,11 @@ ggboxplot(flux_pre, x = "Habitat", aes(y = `Soil moisture (% wet mass)`), color 
   ) 
 
 
-#model whether methane and carbon dioxide flux change due to habitat, veg, with soil moisture and pH as random effects? 
+#model whether methane and carbon dioxide flux change due to habitat, veg, with soil volume in the core as a random effect - before rainfall
 
 
 model_co2 <- glmmTMB(
-  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat*`Estimated soil moisture (% wet mass)` + (1|`Soil volume (m3)`),
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`),
   data = flux_pre,
   family = gaussian()
 )
@@ -5159,8 +5163,26 @@ summary(model_co2)
 
 
 model_ch4 <- glmmTMB(
-  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat*`Estimated soil moisture (% wet mass)` + (1|`Soil volume (m3)`),
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`),
   data = flux_pre,
+  family = gaussian()
+)
+summary(model_ch4)
+
+#model whether methane and carbon dioxide flux change due to habitat, veg, with soil volume in the core as a random effect - after rainfall
+
+
+model_co2 <- glmmTMB(
+  `CO2 flux (micromol CO2 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`),
+  data = flux_post,
+  family = gaussian()
+)
+summary(model_co2)
+
+
+model_ch4 <- glmmTMB(
+  `CH4 flux (nmol CH4 per s per m2)` ~ Bracken*Habitat + (1|`Soil volume (m3)`),
+  data = flux_post,
   family = gaussian()
 )
 summary(model_ch4)
@@ -5170,8 +5192,8 @@ summary(model_ch4)
 
 #assign a new variable, Pre/Post rainfall, to compare fluxes pre rainfall to fluxes post
 
-flux_post <-  flux_timeseries %>%
-  filter(date > as.Date("2025-10-15"))
+#flux_post <-  flux_timeseries %>%
+#  filter(date > as.Date("2025-10-15"))
 
 #is there a differnce in flux between rainfall intensities?
 
