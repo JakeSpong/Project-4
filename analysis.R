@@ -1,8 +1,14 @@
+#for generating maps of sample locations
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(ggmap)
+
 # Load libraries
 library(tidyverse)
 library(here)
 library(ggplot2)
-library(lubridate)
+#library(lubridate)
 library(ggpubr)
 library(multcompView) #for significant difference letters
 library(scales)
@@ -5000,6 +5006,120 @@ fluxes_11112025 <- read_csv("Processed Data/gas_flux_11-11-2025_slopes_output.cs
 flux_data <- rbind(fluxes_29092025, fluxes_01102025,fluxes_03102025,fluxes_06102025, fluxes_08102025,fluxes_10102025,fluxes_13102025,fluxes_15102025,fluxes_17102025,fluxes_20102025,fluxes_22102025,fluxes_24102025,fluxes_27102025,fluxes_29102025,fluxes_31102025,fluxes_03112025,fluxes_05112025,fluxes_07112025,fluxes_11112025)
 
 write_csv(flux_data, "Processed Data/all_times_gas_fluxes.csv")
+
+
+#### generate maps of sample locations (Figure 1) ----
+#to get google satellite layer, Go to the Google Cloud Console.  Create a new project (or use an existing one). Enable the Maps Static API and Geocoding API.  Get your API key.
+
+library(maptiles)
+library(terra)
+library(sf)
+library(ggplot2)
+
+d <- readr::read_csv(
+  here::here("Data", "Field Data.csv")
+) 
+
+
+# Convert your coordinates to an sf object
+coords_sf <- st_as_sf(d, 
+                      coords = c("LongitudeE", "LatitudeN"), 
+                      crs = 4326)
+
+# Create a buffered bounding box to expand the map extent
+bbox_buffered <- st_bbox(coords_sf)
+buffer <- 0.002  # degrees — increase this for more surrounding land
+
+bbox_buffered["xmin"] <- bbox_buffered["xmin"] - buffer
+bbox_buffered["xmax"] <- bbox_buffered["xmax"] + buffer
+bbox_buffered["ymin"] <- bbox_buffered["ymin"] - buffer
+bbox_buffered["ymax"] <- bbox_buffered["ymax"] + buffer
+
+# Convert buffered bbox to sf object for get_tiles
+bbox_sf <- st_as_sfc(bbox_buffered)
+
+# Get satellite tiles using the expanded extent
+satellite_map <- get_tiles(bbox_sf, 
+                           provider = "Esri.WorldImagery",
+                           zoom = 17,
+                           crop = TRUE)
+# Convert tiles to data frame for ggplot
+map_df <- as.data.frame(satellite_map, xy = TRUE)
+
+
+# Robust approach — grab the first three non-xy columns regardless of their name
+r_col <- names(map_df)[3]
+g_col <- names(map_df)[4]
+b_col <- names(map_df)[5]
+# Plot
+maps_figure <- ggplot() +
+  geom_raster(data = map_df, 
+              aes(x = x, y = y, 
+                  fill = rgb(map_df[[r_col]], 
+                             map_df[[g_col]], 
+                             map_df[[b_col]], 
+                             maxColorValue = 255))) +
+  scale_fill_identity() +
+  
+  geom_sf(data = coords_sf,
+          aes(shape = Bracken,
+              colour  = Habitat),
+          size = 3, stroke = 1.2) +
+  
+  scale_colour_manual(values = c("Grassland" = "green",
+                                 "Heathland" = "purple")) +
+  
+  scale_shape_manual(values = c("Present" = 16,
+                                "Absent" = 17)) +
+  
+  # Override the axis tick labels to plain numbers
+  scale_x_continuous(labels = function(x) paste0(round(x, 3), "°E")) +
+  scale_y_continuous(labels = function(y) paste0(round(y, 3), "°N")) +
+  
+  labs(colour = "Habitat",
+       shape  = "Bracken",
+       x = "Longitude",
+       y = "Latitude") +
+  
+  theme_minimal() +
+  theme(legend.position = "right",
+        legend.box      = "vertical")
+
+
+show(maps_figure)
+#save the figure
+ggsave("Figures/sample_locations_figure.svg", plot = maps_figure, width = 7.5, height = 6, dpi = 300)
+
+# 
+# 
+# # Load the UK map from the rnaturalearth package
+# uk_map <- ne_countries(scale = "medium", returnclass = "sf") %>%
+#   filter(name == "United Kingdom")
+# 
+# #extract he sample coordinates from the dataframe
+# sample_coordinates <- data.frame(
+#   Longitude = d$LongitudeE,
+#   Latitude = d$LatitudeN,
+#   Habitat = d$Habitat,
+#   Vegetation = d$Vegetation
+# )
+# # Calculate the bounding box surrounding the 30 sample coordinates
+# longitude_range_sample <- range(sample_coordinates$Longitude)
+# latitude_range_sample <- range(sample_coordinates$Latitude)
+# 
+# # Plot the UK map with only the bounding box
+# UK_Hawes <- ggplot(data = uk_map) +
+#   geom_sf(fill = "lightblue") +  # UK map with light blue fill
+#   geom_rect(
+#     aes(xmin = longitude_range_sample[1], xmax = longitude_range_sample[2], ymin = latitude_range_sample[1], ymax = latitude_range_sample[2]), 
+#     color = "red", fill = NA, linewidth = 2) +  # Add bounding box around the points
+#   theme_minimal()
+# #show the map
+# #show(UK_Hawes)
+# #save the UK map with Haweswater highlighted
+# #ggsave("Figures/UK_Haweswater_boundingbox.svg", width = 8, height = 6)
+# 
+
 
 #### plot average co2 and ch4 flux over time for each habitat ----
 #remove unnecessary columns from dataframe
