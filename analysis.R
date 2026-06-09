@@ -23,6 +23,7 @@ library(rlang)
 
 #for models
 library(glmmTMB)
+library(splines) #to allow for curved models
 library(ggeffects)
 library(emmeans)
 library(DHARMa)
@@ -5129,7 +5130,7 @@ ggsave("Figures/sample_locations_figure.svg", plot = maps_figure, width = 7.5, h
 # 
 
 
-#### plot average co2 and ch4 flux over time for each habitat - Figure 2----
+#### plot average co2 and ch4 flux over time for each habitat - ----
 #remove unnecessary columns from dataframe
 flux_data <- read_csv("Processed Data/all_times_gas_fluxes.csv")
 #remove data entries with p values < 0.05
@@ -5236,6 +5237,7 @@ colnames(flux_avg)[colnames(flux_avg) == "Average CO2 flux"] <- "average_CO2_flu
 #rename the variables to avoid modelling issue with glmmTMB
 colnames(flux_avg)[colnames(flux_avg) == "Average CH4 flux"] <- "average_CH4_flux"
 
+
 #convert dates to numbers
 flux_avg$date <- as.Date(flux_avg$date)
 flux_avg$date_num <- as.numeric(flux_avg$date)
@@ -5251,19 +5253,15 @@ flux_before <- flux_avg %>%
 
 hist(flux_before$average_CO2_flux)
 
-#library(splines)
-#splines allows for curved model
+
+#splines allows for curved model.  df = 1 is linear, increasing number increases curviness - check AIC comparisons below, and check visualisations, to determine best model
 co2_model <- glmmTMB(
   average_CO2_flux ~ ns(date_num, df = 1) * Habitat * Bracken,
   data = flux_before,
   family = gaussian()
 )
 
-# co2_model <- glmmTMB(
-#   average_CO2_flux ~ date_num * Habitat * Bracken,
-#   data = flux_avg,
-#   family = gaussian()
-# )
+summary(co2_model)
 
 
 #create prediction data
@@ -5449,6 +5447,7 @@ co2_model <- glmmTMB(
   data = flux_after,
   family = gaussian()
 )
+
 
 #create prediction data
 newdatafter <- expand.grid(
@@ -5644,6 +5643,7 @@ ch4_model <- glmmTMB(
   family = gaussian()
 )
 
+summary(co2_model)
 
 #create prediction data
 newdatbefore <- expand.grid(
@@ -6025,7 +6025,251 @@ summary(co2_model)
 #stop the next tab opening
 a <- 1
 
+#### model differences between rainfall treatments ----
+flux_data <- read_csv("Processed Data/all_times_gas_fluxes.csv")
+#remove data entries with p values < 0.05
+#flux_data <- flux_data[flux_data$CO2_p_value <= 0.05,]
+flux_timeseries <- flux_data[c(1,2, 12, 13, 32, 33, 34)]
 
+#get the date only in one column
+flux_timeseries <- flux_timeseries %>%
+  mutate(date = as.Date(start_time))
+
+#group by date, Habitat, and Bracken, and calculate means
+flux_avg <- flux_timeseries %>%
+  group_by(date, Habitat, Bracken, `Rainfall volume (ml)`) %>%
+  summarise(
+    `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+    `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+#model only prior to the rainfall treatment
+
+
+# Create a combined grouping label
+flux_avg <- flux_avg %>%
+  mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
+
+#rename the variables to avoid modelling issue with glmmTMB
+colnames(flux_avg)[colnames(flux_avg) == "Average CO2 flux"] <- "average_CO2_flux"
+#rename the variables to avoid modelling issue with glmmTMB
+colnames(flux_avg)[colnames(flux_avg) == "Average CH4 flux"] <- "average_CH4_flux"
+#rename the variables to avoid modelling issue with glmmTMB
+colnames(flux_avg)[colnames(flux_avg) == "Rainfall volume (ml)"] <- "rainfall"
+
+
+#convert dates to numbers
+flux_avg$date <- as.Date(flux_avg$date)
+flux_avg$date_num <- as.numeric(flux_avg$date)
+
+flux_avg$Habitat <- factor(flux_avg$Habitat)
+flux_avg$Bracken <- factor(flux_avg$Bracken)
+
+#gas fluxes after rainfall treatment applied
+flux_after <- flux_avg %>%
+  filter(date > as.Date("2025-10-15"))
+
+hist(flux_after$average_CO2_flux)
+
+# ensure rainfall is a factor
+flux_after$rainfall <- factor(flux_after$rainfall)
+
+co2_rainfall_model <- glmmTMB(
+  average_CO2_flux ~ ns(date_num, df = 1)*Habitat*Bracken*rainfall,
+  data = flux_after,
+  family = gaussian()
+)
+
+
+#create prediction data
+newdatafter <- expand.grid(
+  date_num = seq(
+    min(flux_after$date_num),
+    max(flux_after$date_num),
+    length.out = 200
+  ),
+  Habitat = levels(flux_after$Habitat),
+  Bracken = levels(flux_after$Bracken),
+  rainfall = unique(flux_after$rainfall)
+)
+
+newdatafter$Habitat <- factor(
+  newdatafter$Habitat,
+  levels = levels(flux_after$Habitat)
+)
+newdatafter$Bracken <- factor(
+  newdatafter$Bracken,
+  levels = levels(flux_after$Bracken)
+)
+newdatafter$rainfall <- factor(
+  newdatafter$rainfall,
+  levels = unique(flux_after$rainfall)
+)
+
+# use the model to predict
+predafter <- predict(
+  co2_rainfall_model,
+  newdata = newdatafter,
+  type = "response",
+  se.fit = TRUE
+)
+
+newdatafter$fit <- predafter$fit
+newdatafter$lower <- predafter$fit - 1.96 * predafter$se.fit
+newdatafter$upper <- predafter$fit + 1.96 * predafter$se.fit
+newdatafter$date <- as.Date(
+  newdatafter$date_num,
+  origin = "1970-01-01"
+)
+
+# create grouping variable (now includes rainfall)
+newdatafter$Group <- interaction(
+  newdatafter$Habitat,
+  newdatafter$Bracken,
+  newdatafter$rainfall,
+  sep = "-"
+)
+flux_after$Group <- interaction(
+  flux_after$Habitat,
+  flux_after$Bracken,
+  flux_after$rainfall,
+  sep = "-"
+)
+#set shape and line formatting for the different treatemnts
+shape_vals <- c("Absent" = 17,  # triangle
+                "Present" = 16) # circle
+
+line_vals <- c("Absent" = "dashed",
+               "Present" = "solid")
+
+
+
+
+co2_after <- ggplot() +
+  
+  # observed data
+  geom_point(
+    data = flux_after,
+    aes(
+      x = date,
+      y = average_CO2_flux,
+      colour = rainfall
+    ),
+    alpha = 0.8,
+    size = 2
+  ) +
+  
+  # model ribbon
+  geom_ribbon(
+    data = newdatafter,
+    aes(
+      x = date,
+      ymin = lower,
+      ymax = upper,
+      fill = rainfall,
+      group = rainfall
+    ),
+    alpha = 0.15,
+    colour = NA
+  ) +
+  
+  # model lines
+  geom_line(
+    data = newdatafter,
+    aes(
+      x = date,
+      y = fit,
+      colour = rainfall,
+      group = rainfall
+    ),
+    linewidth = 1
+  ) +
+  
+  # four panels: one per Habitat x Bracken combination
+  facet_grid(Bracken ~ Habitat) +
+  
+  # scales
+  scale_colour_viridis_d(
+    name = "Rainfall (ml)",
+    option = "plasma",
+    direction = -1
+  ) +
+  
+  scale_fill_viridis_d(
+    name = "Rainfall (ml)",
+    option = "plasma"
+  ) +
+  
+  scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
+  
+  theme_bw() +
+  
+  labs(
+    x = "Date",
+    y = NULL,
+    colour = "Rainfall (ml)",
+    fill = "Rainfall (ml)"
+  )
+#show the figure
+show(co2_after)
+#panel figure
+
+#add for CH4
+# Fit CH4 model
+ch4_rainfall_model <- glmmTMB(
+  average_CH4_flux ~ ns(date_num, df = 1)*Habitat*Bracken*rainfall,
+  data = flux_after,
+  family = gaussian()
+)
+
+# Predict from CH4 model
+predafter_ch4 <- predict(
+  ch4_rainfall_model,
+  newdata = newdatafter,
+  type = "response",
+  se.fit = TRUE
+)
+
+# Store CH4 predictions in a separate dataframe
+newdatafter_ch4 <- newdatafter
+newdatafter_ch4$fit   <- predafter_ch4$fit
+newdatafter_ch4$lower <- predafter_ch4$fit - 1.96 * predafter_ch4$se.fit
+newdatafter_ch4$upper <- predafter_ch4$fit + 1.96 * predafter_ch4$se.fit
+
+# Now plot using newdatafter_ch4
+ch4_after <- ggplot() +
+  
+  geom_point(
+    data = flux_after,
+    aes(x = date, y = average_CH4_flux, colour = rainfall),
+    alpha = 0.8, size = 2
+  ) +
+  
+  geom_ribbon(
+    data = newdatafter_ch4,
+    aes(x = date, ymin = lower, ymax = upper,
+        fill = rainfall, group = rainfall),
+    alpha = 0.15, colour = NA
+  ) +
+  
+  geom_line(
+    data = newdatafter_ch4,
+    aes(x = date, y = fit, colour = rainfall, group = rainfall),
+    linewidth = 1
+  ) +
+  
+  facet_grid(Bracken ~ Habitat) +
+  coord_cartesian(ylim = c(-2.0, 0.5)) +
+  scale_colour_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
+  scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma") +
+  scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
+  theme_bw() +
+  labs(x = "Date", y = NULL, colour = "Rainfall (ml)", fill = "Rainfall (ml)")
+
+show(ch4_after)
 
 #### Question 1: is there a difference in CO2 and CH4 fluxes between vegetation and habitat?? ----
 #remove unnecessary columns from dataframe
