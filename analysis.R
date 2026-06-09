@@ -6200,7 +6200,7 @@ co2_after <- ggplot() +
   
   scale_fill_viridis_d(
     name = "Rainfall (ml)",
-    option = "plasma"
+    option = "plasma", direction = -1
   ) +
   
   scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
@@ -6215,7 +6215,9 @@ co2_after <- ggplot() +
   )
 #show the figure
 show(co2_after)
-#panel figure
+#save the figure
+ggsave("Figures/co2_rainfall_models.svg", plot = co2_after, width = 10, height = 6, dpi = 300)
+
 
 #add for CH4
 # Fit CH4 model
@@ -6264,12 +6266,14 @@ ch4_after <- ggplot() +
   facet_grid(Bracken ~ Habitat) +
   coord_cartesian(ylim = c(-2.0, 0.5)) +
   scale_colour_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
-  scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma") +
+  scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
   theme_bw() +
   labs(x = "Date", y = NULL, colour = "Rainfall (ml)", fill = "Rainfall (ml)")
 
 show(ch4_after)
+#save the figure
+ggsave("Figures/ch4_rainfall_models.svg", plot = ch4_after, width = 10, height = 6, dpi = 300)
 
 #### Question 1: is there a difference in CO2 and CH4 fluxes between vegetation and habitat?? ----
 #remove unnecessary columns from dataframe
