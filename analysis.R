@@ -65,6 +65,25 @@ show(pH_lys_bxp)
 #save our plot
 ggsave(path = "Figures", paste0(Sys.Date(), "_pH-lysate.svg"), width = 10, height= 5, pH_lys_bxp)
 
+#trim off the rainfall data
+model_data <- pH_lys[-(1:3),]
+hist(model_data$`Lysate pH`)
+
+model <- glmmTMB(
+  `Lysate pH` ~ Bracken*Habitat,
+  data = model_data,
+  family = gaussian()
+)
+summary(model)
+
+#check for model overdispersion
+sim_res <- simulateResiduals(model)
+plot(sim_res)   # KS test + dispersion plot
+testDispersion(sim_res)
+testUniformity(sim_res) # checks overall residual uniformity
+testOutliers(sim_res)   # checks for outliers
+
+
 #Type 1 two-way anova using data from all sites
 anova <- aov(pH_lys$`Lysate pH` ~ pH_lys$Bracken*pH_lys$Habitat)
 #check homogeneity of variance
@@ -6316,7 +6335,7 @@ flux_post <- flux_timeseries %>%
 
 
 
-
+hist((flux_pre$`Soil moisture (% wet mass)`))
 #check if soil moisture varies between habitat/bracken
 model_moist <- glmmTMB(
   `Soil moisture (% wet mass)` ~ Bracken*Habitat  + (1|`Soil volume (m3)`),
@@ -6324,6 +6343,15 @@ model_moist <- glmmTMB(
   family = gaussian()
 )
 summary(model_moist)
+
+#check for model overdispersion
+sim_res <- simulateResiduals(model_moist)
+plot(sim_res)   # KS test + dispersion plot
+testDispersion(sim_res)
+testUniformity(sim_res) # checks overall residual uniformity
+testOutliers(sim_res)   # checks for outliers
+
+
 
 
 ggboxplot(flux_pre, x = "Habitat", aes(y = `Soil moisture (% wet mass)`), color = "Bracken", lwd = 0.75)  +
