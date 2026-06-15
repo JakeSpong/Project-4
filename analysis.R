@@ -28,16 +28,17 @@ library(ggeffects)
 library(emmeans)
 library(DHARMa)
 
-#### Lysate pH ----
-pH_lys <- read_csv("Data/Lysate pH.csv")
+#### pH ----
+pH <- read_csv("Data/pH.csv")
+
 
 #reorder the sites so they show up on the plot from west (LHS) to east (RHS)
-pH_lys$Bracken <- factor(pH_lys$Bracken, levels = c("Present", "Absent"))
+pH$Bracken <- factor(pH$Bracken, levels = c("Present", "Absent"))
 #reorder the habitats so they appear in the specified order
-pH_lys$Habitat <- factor(pH_lys$Habitat, levels = c("Rainfall", "Grassland", "Heathland"))
+pH$Habitat <- factor(pH$Habitat, levels = c("Rainfall", "Grassland", "Heathland"))
 
 #boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
-pH_lys_bxp <- ggboxplot(pH_lys, x = "Habitat", aes(y = `Lysate pH`), color = "Bracken", lwd = 0.75)  +
+pH_lys_bxp <- ggboxplot(pH, x = "Habitat", aes(y = `Lysate pH`), color = "Bracken", lwd = 0.75)  +
   labs(
     x = "Habitat",
     y =  expression("Lysate pH")
@@ -64,6 +65,38 @@ pH_lys_bxp <- ggboxplot(pH_lys, x = "Habitat", aes(y = `Lysate pH`), color = "Br
 show(pH_lys_bxp)  
 #save our plot
 ggsave(path = "Figures", paste0(Sys.Date(), "_pH-lysate.svg"), width = 10, height= 5, pH_lys_bxp)
+
+
+pH <- pH[-(1:3),]
+#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
+pH_bxp <- ggboxplot(pH, x = "Habitat", aes(y = `Field soil pH`), color = "Bracken", lwd = 0.75)  +
+  labs(
+    x = "Habitat",
+    y =  expression("Field soil pH")
+  ) + theme(
+    # Remove panel border
+    panel.border = element_blank(),  
+    # Remove panel grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Remove panel background
+    panel.background = element_blank(),
+    # Add axis line
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    #change colour and thickness of axis ticks
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    #change axis labels colour
+    axis.title.x = element_text(colour = "black"),
+    axis.title.y = element_text(colour = "black"),
+    #change tick labels colour
+    axis.text.x = element_text(colour = "black"),
+    axis.text.y = element_text(colour = "black"),
+  ) 
+
+show(pH_bxp)  
+
+hist(pH$`Field soil pH`)
+
 
 #trim off the rainfall data
 model_data <- pH_lys[-(1:3),]
