@@ -6893,3 +6893,20 @@ extract_model_summary <- function(model, response_name) {
 # Extract summaries for all models
 summary_model <- extract_model_summary(model_co2, "CO2 flux (micromol CO2 per s per m2)")
 summary_model
+
+
+
+
+#### Enzyme analysis ----
+field_moisture <- read_csv("Data/Soil moisture (field conditions).csv")
+enzyme_variables <- read_csv("Data/Enzyme Extraction Variables.csv")
+
+#join field moisture to enzyme varaibles
+enzyme_variables <- enzyme_variables %>%
+  left_join(field_moisture %>% select(`Sample ID`, `Soil moisture (% wet mass)`), by = "Sample ID")
+#calculate dry mass of soil
+enzyme_variables$`Dry soil mass (g)` <- (enzyme_variables$`Wet soil mass (g)` - (enzyme_variables$`Wet soil mass (g)`*(enzyme_variables$`Soil moisture (% wet mass)`/100)))
+
+#export as new datafile
+write.csv(enzyme_variables, "Data/Enzyme_variables.csv", row.names = FALSE)
+                                                                                
