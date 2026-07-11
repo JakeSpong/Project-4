@@ -39,8 +39,6 @@ for (sheet in sheet_names) {
 
 
 
-# analyse standards to get the curve value for each gain reading ---- ----
-
 ## get the standard curve ---- ----
 
 # the standards dataframe
@@ -279,6 +277,30 @@ results_df$SampleType <- gsub("\\.csv$", "", results_df$SourceFile)  # remove ".
 results_df$SampleType <- gsub("[0-9]", "", results_df$SampleType)     # remove digits
 #remove rows where the microplate wells were blank
 results_df <- results_df[nchar(results_df$SampleID) > 2, ]
+
+#load and append covariates needed e.g. moisture, soil mass, dilution factor ----
+#covaraites
+covs <- read_csv("Data/Enzyme_variables.csv")
+#check all SampleIDs in the results_df are consistently formatted with their -M suffixes
+results_df$SampleID <- gsub("(?<!-)\\s?M$", "-M", results_df$SampleID, perl = TRUE)
+#ensure Sample ID is named correctly
+colnames(results_df)[1] <- "Sample ID"
+#join covariates to results_df in a new df - we want the date samples frozen, incubation time (hours), dry soil mass, along with volumes of liquids
+results <- results_df %>%
+  left_join(covs %>% select(1, 4, 6, 8, 9, 10, 11), by = "Sample ID")
+#calculate dilution factor
+results$`Dilution Factor` <- results$`Phosphate buffer volume added to dialysis tubes (microliters)`/results$`Volume sample added to microplate well (microliters)`
+#calculate concentration factor
+results$`Concentration Factor` <- results$`Phosphate buffer volume added to dialysis tubes (microliters)`/results$`Initial extract volume (microliters)`
+
+#multiply by dilution factor
+results$`moles enzyme in extract (micromol)` <- results$Concentration*results$`Dilution Factor`
+#multiply by concentration factor
+results$`correction for concentration step (sausages)` <- results$`moles enzyme in extract (micromol)`*results$`Concentration Factor`
+#calculate extracellular enzyme activity per hour
+results$`EEA per hour` <- ((results$`correction for concentration step (sausages)`/results$`Dry soil mass (g)`)*1000)/results$`Incubation time (hours)`
+
+#### generate boxplot of EEAs under inital conditons ----
 
 
 #INITIAL CODE WORKING ON ONE MICROPLATE
