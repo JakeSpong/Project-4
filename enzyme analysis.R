@@ -11,7 +11,7 @@ library(svglite)
 
 library(tidyverse)
 library(here)
-library(ggplot2)
+
 #library(lubridate)
 library(ggpubr)
 library(multcompView) #for significant difference letters
@@ -346,9 +346,43 @@ initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour`, fill = Bracken)
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
         strip.background = element_rect(fill = "grey85", color = "black"))
 
+show(initial)
 #save the figure
 ggsave("Figures/initial_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
        width = 10, height = 7, dpi = 300)
+
+#### EEAs under end of mesocosm conditions ----
+
+#load in the moisture data, format data correctly
+field_moisture <- read_csv("Data/Soil Moisture (field conditions).csv")
+#field condition moisture
+initial_moisture <- field_moisture[, c(1, 7)]
+
+moisture_data <- read_csv("Data/mesocosm moisture - Soil mass change as % of day 0.csv")
+                    
+
+
+#add %change in mass (i.e. moisture)
+initial_moisture <- initial_moisture %>%
+  left_join(moisture_data %>% select(1, 21), by = "Sample ID")
+
+initial_moisture$`Gravimetric moisture content when sampling for enzymes` <- initial_moisture$`Soil moisture (% wet mass)`*(initial_moisture$`Soil Moisture (% day 0) destructive sampling (13 or 14/11/2025)`/100)
+
+initial_moisture$`Sample ID` <- ifelse(!grepl("-M$", initial_moisture$`Sample ID`),
+                             paste0(initial_moisture$`Sample ID`, "-M"),
+                             initial_moisture$`Sample ID`)
+      
+
+#load covariates
+covs <- read_csv("Data/Enzyme_variables.csv")
+
+#filter to final day of mesocosm study
+
+
+
+
+
+
 
 #run models to see if differences are significant ----
 
@@ -359,12 +393,13 @@ split_dfs <- field_df %>%
   group_split() %>%
   setNames(sample_types)
 
+gluc <- split_dfs[["Gluc"]] 
+
 #check the data distripution for each enzyme - they all look right skewed!
 hist(split_dfs[["Xylo"]]$`EEA per hour`)
 print(split_dfs[["Xylo"]], n = 31)
 
 library(purrr)
-library(broom.mixed)
 
 models <- split_dfs %>%
   map(~ glmmTMB(`EEA per hour` ~ Habitat*Bracken, 
