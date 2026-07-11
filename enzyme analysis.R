@@ -4,6 +4,10 @@ library(tidyr)
 library(readxl) #for exporting tabs from xlsx to csv
 library(tibble) #for renaming rows
 library(readr) #for reading in many files
+library(dplyr) #for making factor columns
+library(stringr) #for making factor columns
+library(glmmTMB) #for modelling results
+library(svglite)
 
 library(tidyverse)
 library(here)
@@ -300,8 +304,75 @@ results$`correction for concentration step (sausages)` <- results$`moles enzyme 
 #calculate extracellular enzyme activity per hour
 results$`EEA per hour` <- ((results$`correction for concentration step (sausages)`/results$`Dry soil mass (g)`)*1000)/results$`Incubation time (hours)`
 
-#### generate boxplot of EEAs under inital conditons ----
+#add columns for the various factors
+results <- results %>%
+  mutate(
+    #if M is present, it is from end of mesocosm study.  If no M, from field conditions
+    Condition = if_else(str_detect(`Sample ID`, "-M$"), "Mesocosm", "Field"),
+    
+    # extract the 2-letter code (HB, HH, GG, GB) regardless of whether -M is present
+    HabitatCode = str_extract(`Sample ID`, "[A-Z]{2}(?=(-M)?$)"),
+    
+    Habitat = case_when(
+      substr(HabitatCode, 1, 1) == "H" ~ "Heathland",
+      substr(HabitatCode, 1, 1) == "G" ~ "Grassland",
+      TRUE ~ NA_character_
+    ),
+    
+    Bracken = case_when(
+      substr(HabitatCode, 2, 2) == "B" ~ "Present",
+      substr(HabitatCode, 2, 2) %in% c("G", "H") ~ "Absent",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  select(-HabitatCode)  # drop the helper column, keep only the three requested
 
+results
+#### generate boxplot of EEAs under inital conditons ----
+#EEA from initial field conditions
+field_df <- results %>%
+  filter(Condition == "Field")
+
+#plot the intial EEAs
+initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour`, fill = Bracken)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.15), 
+             aes(color = Bracken), alpha = 0.6, size = 1.5) +
+  facet_wrap(~ SampleType) +
+  scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  labs(x = "Habitat", y = "EEA per hour") +
+  theme_minimal() +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+        strip.background = element_rect(fill = "grey85", color = "black"))
+
+#save the figure
+ggsave("Figures/initial_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
+       width = 10, height = 7, dpi = 300)
+
+#run models to see if differences are significant ----
+
+#first split out data for each enzyme
+sample_types <- unique(field_df$SampleType)
+split_dfs <- field_df %>%
+  group_by(SampleType) %>%
+  group_split() %>%
+  setNames(sample_types)
+
+#check the data distripution for each enzyme - they all look right skewed!
+hist(split_dfs[["Xylo"]]$`EEA per hour`)
+print(split_dfs[["Xylo"]], n = 31)
+
+library(purrr)
+library(broom.mixed)
+
+models <- split_dfs %>%
+  map(~ glmmTMB(`EEA per hour` ~ Habitat*Bracken, 
+                family = Gamma(link = "log"), 
+                data = .x))
+
+# View summary for each model
+models %>% map(summary)
 
 #INITIAL CODE WORKING ON ONE MICROPLATE
 #### now analyse each microplate gain 782----
