@@ -18,8 +18,49 @@ library(multcompView) #for significant difference letters
 library(scales)
 library(dplyr)
 library(rlang)
+#### calculate soil moisture content at end of mesocosm experiment NO LONGER NEEDED ----
 
-#load in microplate, seprate tabs into csvs to analyse ----
+#load in the moisture data, format data correctly
+field_moisture <- read_csv("Data/Soil Moisture (field conditions).csv")
+#field condition moisture
+initial_moisture <- field_moisture[, c(1, 7)]
+#moisture data
+moisture_data <- read_csv("Data/mesocosm moisture - Soil mass change as % of day 0.csv")
+#add %change in mass (i.e. moisture)
+initial_moisture <- initial_moisture %>%
+  left_join(moisture_data %>% select(1, 21), by = "Sample ID")
+#calculate soil moisture as % wet mass for the day of sampling for enzymes
+initial_moisture$`end Soil moisture (% wet mass)` <- 100*(1-((100/initial_moisture$`Soil Moisture (% day 0) destructive sampling (13 or 14/11/2025)`)*(1-(initial_moisture$`Soil moisture (% wet mass)`/100))))
+#add the -M suffix
+initial_moisture$`Sample ID` <- ifelse(!grepl("-M$", initial_moisture$`Sample ID`),
+                                       paste0(initial_moisture$`Sample ID`, "-M"),
+                                       initial_moisture$`Sample ID`)
+
+
+#load covariates
+covs <- read_csv("Data/Enzyme_variables.csv")
+
+#add %change in mass (i.e. moisture)
+covs <- covs %>%
+  left_join(initial_moisture %>% select(1, 4), by = "Sample ID")
+
+#put all soil moisture values in one column
+covs <- covs %>%
+  mutate(`Soil moisture (% wet mass)` = coalesce(`Soil moisture (% wet mass)`, `end Soil moisture (% wet mass)`))
+#delete the unnecessary columns
+covs <- covs[, 1:(ncol(covs)-2)]
+#fill out dry soil mass row
+covs$`Dry soil mass (g)` <- (covs$`Wet soil mass (g)`)*(1-(covs$`Soil moisture (% wet mass)`/100))
+
+#save the updated covs file
+write.csv(covs, "Data/Enzyme_variables.csv", row.names = FALSE)
+
+
+
+
+
+ 
+#load in microplate, seprate tabs into csvs to analyse NO LONGER NEEDED ----
 
 # Path to your Excel file
 #excel_file <- "Data/Microplate Reader Data/26-06-2026-labelled_Microplate.xlsx"
@@ -43,7 +84,7 @@ for (sheet in sheet_names) {
 
 
 
-## get the standard curve ---- ----
+## get the standard curve ---- NO LONGER NEEDED ----
 
 # the standards dataframe
 #standards <- read_csv("Data/Microplate Reader Data/26-06-2026 plates gain700/Standard_gain700.csv")
@@ -80,7 +121,7 @@ names(slopes) <- rownames(std_raw)
 #mean slope
 mean_slope <- mean(slopes)
 
-## plot the regression slopes ---- ----
+## plot the regression slopes ---- NO LONGER NEEDED----
 
 
 # reshape data into long format for plotting
@@ -106,8 +147,7 @@ ggplot(plot_long, aes(x = concentration, y = signal, color = replicate)) +
   theme_minimal()
 
 
-
-# export the slope ----
+#export the slope
 gain_value <- 755   # <- replace with gain value as per the standards being analysed
 
 # Build a one-row data frame with the requested headers
@@ -276,14 +316,15 @@ for (file_path in plate_files) {
   all_outliers_df <- rbind(all_outliers_df, plate_output$outlier_log)
 }
 
-#reformce so we know which enzyme which data refers to
-results_df$SampleType <- gsub("\\.csv$", "", results_df$SourceFile)  # remove ".csv"
-results_df$SampleType <- gsub("[0-9]", "", results_df$SampleType)     # remove digits
 #remove rows where the microplate wells were blank
 results_df <- results_df[nchar(results_df$SampleID) > 2, ]
 
+#reformat so we know which enzyme which data refers to
+results_df$SampleType <- gsub("\\.csv$", "", results_df$SourceFile)  # remove ".csv"
+results_df$SampleType <- gsub("[0-9]", "", results_df$SampleType)     # remove digits
+
 #load and append covariates needed e.g. moisture, soil mass, dilution factor ----
-#covaraites
+
 covs <- read_csv("Data/Enzyme_variables.csv")
 #check all SampleIDs in the results_df are consistently formatted with their -M suffixes
 results_df$SampleID <- gsub("(?<!-)\\s?M$", "-M", results_df$SampleID, perl = TRUE)
@@ -328,6 +369,9 @@ results <- results %>%
   select(-HabitatCode)  # drop the helper column, keep only the three requested
 
 results
+#once we have checked the odd control wells not filled aren't fucking up results, export then just load in in future.
+
+
 #### generate boxplot of EEAs under inital conditons ----
 #EEA from initial field conditions
 field_df <- results %>%
@@ -351,38 +395,28 @@ show(initial)
 ggsave("Figures/initial_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
        width = 10, height = 7, dpi = 300)
 
-#### EEAs under end of mesocosm conditions ----
 
-#load in the moisture data, format data correctly
-field_moisture <- read_csv("Data/Soil Moisture (field conditions).csv")
-#field condition moisture
-initial_moisture <- field_moisture[, c(1, 7)]
+#### generate boxplot of EEAs after mesocosm experiment ----
+field_df <- results %>%
+  filter(Condition == "Mesocosm")
 
-moisture_data <- read_csv("Data/mesocosm moisture - Soil mass change as % of day 0.csv")
-                    
+#plot the intial EEAs
+initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour`, fill = Bracken)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.15), 
+             aes(color = Bracken), alpha = 0.6, size = 1.5) +
+  facet_wrap(~ SampleType) +
+  scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  labs(x = "Habitat", y = "EEA per hour") +
+  theme_minimal() +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+        strip.background = element_rect(fill = "grey85", color = "black"))
 
-
-#add %change in mass (i.e. moisture)
-initial_moisture <- initial_moisture %>%
-  left_join(moisture_data %>% select(1, 21), by = "Sample ID")
-
-initial_moisture$`Gravimetric moisture content when sampling for enzymes` <- initial_moisture$`Soil moisture (% wet mass)`*(initial_moisture$`Soil Moisture (% day 0) destructive sampling (13 or 14/11/2025)`/100)
-
-initial_moisture$`Sample ID` <- ifelse(!grepl("-M$", initial_moisture$`Sample ID`),
-                             paste0(initial_moisture$`Sample ID`, "-M"),
-                             initial_moisture$`Sample ID`)
-      
-
-#load covariates
-covs <- read_csv("Data/Enzyme_variables.csv")
-
-#filter to final day of mesocosm study
-
-
-
-
-
-
+show(initial)
+#save the figure
+ggsave("Figures/final_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
+       width = 10, height = 7, dpi = 300)
 
 #run models to see if differences are significant ----
 
