@@ -164,7 +164,7 @@ write.table(new_row, "Processed Data/mean_slope_output.csv",
             sep = ",", append = TRUE,
             row.names = FALSE, col.names = FALSE)
 
-#### analyse the microplate data ----
+#### analyse the microplate data ---- NO LONGER NEEDED ----
 
 #import slopes from standard curves
 stnd_slopes <- read_csv("Processed Data/mean_slope_output.csv")
@@ -282,6 +282,7 @@ analyse_plate <- function(file_path, slope_value, gain_value) {
   outlier_log$SourceFile <- basename(file_path)
   
   list(plate_result = plate_result, outlier_log = outlier_log)
+ 
 }
 
 # Find all plate CSVs to process (excluding standard curve files)
@@ -301,6 +302,7 @@ results_df <- data.frame()
 #dataframe to store outliers
 all_outliers_df <- data.frame()
 
+#run the microplate analyser function, generating an output table of results, and a df containing the outliers that were removed 
 for (file_path in plate_files) {
   
   # extract gain number from the folder name, e.g. ".../gain782/..." -> 782
@@ -323,16 +325,18 @@ results_df <- results_df[nchar(results_df$SampleID) > 2, ]
 results_df$SampleType <- gsub("\\.csv$", "", results_df$SourceFile)  # remove ".csv"
 results_df$SampleType <- gsub("[0-9]", "", results_df$SampleType)     # remove digits
 
-#load and append covariates needed e.g. moisture, soil mass, dilution factor ----
-
-covs <- read_csv("Data/Enzyme_variables.csv")
 #check all SampleIDs in the results_df are consistently formatted with their -M suffixes
 results_df$SampleID <- gsub("(?<!-)\\s?M$", "-M", results_df$SampleID, perl = TRUE)
 #ensure Sample ID is named correctly
 colnames(results_df)[1] <- "Sample ID"
+
+
+#add covariates to calculate EEA per hourr per g dry weight
+covs <- read_csv("Data/Enzyme_variables.csv")
 #join covariates to results_df in a new df - we want the date samples frozen, incubation time (hours), dry soil mass, along with volumes of liquids
 results <- results_df %>%
   left_join(covs %>% select(1, 4, 6, 8, 9, 10, 11), by = "Sample ID")
+
 #calculate dilution factor
 results$`Dilution Factor` <- results$`Phosphate buffer volume added to dialysis tubes (microliters)`/results$`Volume sample added to microplate well (microliters)`
 #calculate concentration factor
@@ -342,8 +346,8 @@ results$`Concentration Factor` <- results$`Phosphate buffer volume added to dial
 results$`moles enzyme in extract (micromol)` <- results$Concentration*results$`Dilution Factor`
 #multiply by concentration factor
 results$`correction for concentration step (sausages)` <- results$`moles enzyme in extract (micromol)`*results$`Concentration Factor`
-#calculate extracellular enzyme activity per hour
-results$`EEA per hour` <- ((results$`correction for concentration step (sausages)`/results$`Dry soil mass (g)`)*1000)/results$`Incubation time (hours)`
+#calculate extracellular enzyme activity per hour her g dry weight soil
+results$`EEA per hour per g dry soil` <- ((results$`correction for concentration step (sausages)`/results$`Dry soil mass (g)`)*1000)/results$`Incubation time (hours)`
 
 #add columns for the various factors
 results <- results %>%
@@ -353,13 +357,13 @@ results <- results %>%
     
     # extract the 2-letter code (HB, HH, GG, GB) regardless of whether -M is present
     HabitatCode = str_extract(`Sample ID`, "[A-Z]{2}(?=(-M)?$)"),
-    
+    #if first letter of two-leter code H, it's heathland; if G, grassland
     Habitat = case_when(
       substr(HabitatCode, 1, 1) == "H" ~ "Heathland",
       substr(HabitatCode, 1, 1) == "G" ~ "Grassland",
       TRUE ~ NA_character_
     ),
-    
+    #if second letter of two-letter code is B, bracken is present, if G or H, bracken is absent 
     Bracken = case_when(
       substr(HabitatCode, 2, 2) == "B" ~ "Present",
       substr(HabitatCode, 2, 2) %in% c("G", "H") ~ "Absent",
@@ -368,8 +372,9 @@ results <- results %>%
   ) %>%
   select(-HabitatCode)  # drop the helper column, keep only the three requested
 
-results
-#once we have checked the odd control wells not filled aren't fucking up results, export then just load in in future.
+
+#save the data so we don't have to run the function again
+write.csv(results, "Processed Data/EEA (nmol per h per g dry weight).csv", row.names = FALSE)
 
 
 #### generate boxplot of EEAs under inital conditons ----
