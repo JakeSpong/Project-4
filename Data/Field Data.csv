@@ -1,60 +1,60 @@
-Mesocosm,waypoint,Habitat,Vegetation,os grid reference,elevation (m),date,veg cover species,veg cover species,veg cover species,veg cover species,veg cover species,LatitudeN,LongitudeE,Bracken
-32,123,Heathland,Bracken,NY5007814809,410,24/09/2025,moss,grass,,,,54.526092,-2.7728471,Present
-55,124,Heathland,Bracken,NY5005214821,417,24/09/2025,grass,moss,,,,54.526197,-2.7732508,Present
-6,125,Heathland,Heather,NY5000914786,405,24/09/2025,moss,,,,,54.525879,-2.7739092,Absent
-46,126,Heathland,Heather,NY4996414773,404,24/09/2025,grass,,,,,54.525757,-2.7746022,Absent
-13,127,Heathland,Heather,NY4992214797,403,24/09/2025,grass,,,,,54.525969,-2.7752552,Absent
-16,128,Heathland,Heather,NY4987714738,408,24/09/2025,myrtilus,moss,,,,54.525434,-2.7759403,Absent
-10,129,Heathland,Heather,NY4982414790,409,24/09/2025,myrtilus,moss,,,,54.525896,-2.776768,Absent
-4,130,Heathland,Bracken,NY4980714863,413,24/09/2025,grass,moss,,,,54.526551,-2.7770431,Present
-48,131,Heathland,Bracken,NY4979114908,416,24/09/2025,myrtilus,moss,,,,54.526953,-2.777298,Present
-51,132,Heathland,Heather,NY4977514939,418,24/09/2025,myrtilus,moss,,,,54.52723,-2.7775504,Absent
-8,133,Heathland,Bracken,NY4971314953,421,24/09/2025,grass,,,,,54.52735,-2.7785107,Present
-9,134,Heathland,Bracken,NY4965515004,431,24/09/2025,moss,,,,,54.527802,-2.7794155,Present
-3,135,Heathland,Heather,NY4971815004,415,24/09/2025,moss,,,,,54.527809,-2.7784422,Absent
-7,136,Heathland,Heather,NY4978214973,417,24/09/2025,moss,,,,,54.527537,-2.7774481,Absent
-1,137,Heathland,Bracken,NY4980914939,414,24/09/2025,myrtilus,,,,,54.527234,-2.7770252,Present
-2,138,Heathland,Bracken,NY4986314917,408,24/09/2025,moss,,,,,54.527041,-2.7761871,Present
-5,139,Heathland,Heather,NY4992314936,413,24/09/2025,moss,,,,,54.527218,-2.7752634,Absent
-49,140,Heathland,Bracken,NY4993314995,407,24/09/2025,grass,,,,,54.527749,-2.7751189,Present
-12,141,Heathland,Heather,NY5003114982,411,24/09/2025,grass,moss,myrtilus,,,54.527642,-2.7736026,Absent
-11,142,Heathland,Heather,NY5004414903,416,24/09/2025,moss,myrtilus,,,,54.526933,-2.7733884,Absent
-42,144,Heathland,Bracken,NY5021314862,420,25/09/2025,grass,,,,,54.526582,-2.7707704,Present
-47,145,Heathland,Bracken,NY5023414922,419,25/09/2025,grass,,,,,54.527123,-2.7704562,Present
-23,146,Heathland,Heather,NY5022414972,430,25/09/2025,moss,myrtilus,,,,54.527571,-2.7706191,Absent
-19,147,Heathland,Heather,NY5024715073,426,25/09/2025,moss,myrtilus,,,,54.528481,-2.7702809,Absent
-29,148,Heathland,Bracken,NY5027615080,419,25/09/2025,moss,oxalis acetosa,,,,54.528547,-2.769834,Present
-53,149,Heathland,Bracken,NY5031815105,401,25/09/2025,moss,grass,,,,54.528776,-2.7691893,Present
-14,150,Heathland,Heather,NY5040715160,390,25/09/2025,myrtilus,moss,,,,54.529279,-2.7678235,Absent
-52,151,Heathland,Bracken,NY5048315206,386,25/09/2025,moss,grass,,,,54.529699,-2.766657,Present
-57,152,Heathland,Bracken,NY5055615180,388,25/09/2025,grass,myrtilus,,,,54.529473,-2.7655248,Present
-44,153,Heathland,Heather,NY5043215011,394,25/09/2025,grass,myrtilus,,,,54.527942,-2.7674121,Absent
-15,154,Grassland,Bracken,NY5034714832,384,25/09/2025,grass,ranunculus,,,,54.526325,-2.7686952,Present
-30,155,Grassland,Grass,NY5029214825,395,25/09/2025,grass,clover,ranunculus,dandelion,,54.526257,-2.7695437,Absent
-38,156,Grassland,Bracken,NY5028914792,403,25/09/2025,grass,ranunculus,nettles,,,54.52596,-2.7695845,Present
-41,157,Grassland,Grass,NY5021514766,413,25/09/2025,grass,clover,,,,54.525719,-2.7707233,Absent
-40,158,Grassland,Bracken,NY5018914712,403,25/09/2025,grass,ranunculus,moss,rumex acetosa,,54.525231,-2.7711158,Present
-26,159,Grassland,Bracken,NY5024514668,392,25/09/2025,grass,ranunculus,rumex acetosa,,,54.524842,-2.7702432,Present
-50,160,Grassland,Grass,NY5031014711,384,25/09/2025,grass,clover,red clover,ranunculus,rumex acetosa,54.525234,-2.7692463,Absent
-45,161,Grassland,Bracken,NY5043414756,370,25/09/2025,grass,rumex acetosa,ranunculus,,,54.525651,-2.7673382,Present
-58,162,Grassland,Grass,NY5045914827,376,25/09/2025,grass,thistle,ranunculus,,,54.526291,-2.766964,Absent
-34,163,Grassland,Grass,NY5050514840,374,25/09/2025,grass,ranunculus,,,,54.526413,-2.7662555,Absent
-54,164,Grassland,Bracken,NY5054414869,366,25/09/2025,moss,rumex acetosa,,,,54.526677,-2.7656579,Present
-22,165,Grassland,Grass,NY5057814897,358,25/09/2025,grass,ranunculus,,,,54.526932,-2.7651373,Absent
-17,166,Grassland,Bracken,NY5062614884,343,25/09/2025,grass,,,,,54.52682,-2.7643935,Present
-18,167,Grassland,Bracken,NY5066514897,331,25/09/2025,ranunculus,grass,,,,54.526941,-2.7637932,Present
-60,168,Grassland,Bracken,NY5075914952,292,25/09/2025,grass,ranunculus,,,,54.527444,-2.7623501,Present
-24,169,Grassland,Bracken,NY5073814891,312,26/09/2025,rumex acetosa,moss,grass,,,54.526894,-2.7626643,Present
-33,170,Grassland,Bracken,NY5071114831,311,26/09/2025,grass,,,,,54.526352,-2.7630714,Present
-27,171,Grassland,Bracken,NY5065014732,327,26/09/2025,grass,,,,,54.525456,-2.7639972,Present
-59,172,Grassland,Grass,NY5055514623,331,26/09/2025,ranunculus,moss,,,,54.524468,-2.7654465,Absent
-39,173,Grassland,Grass,NY5050414579,335,26/09/2025,moss,ranunculus,,,,54.524067,-2.766227,Absent
-25,174,Grassland,Bracken,NY5041914531,342,26/09/2025,moss,rumex acetosa,ranunculus,,,54.523628,-2.767532,Present
-28,176,Grassland,Bracken,NY5032214581,361,26/09/2025,rumex acetosa,ranunculus,,,,54.524067,-2.769039,Present
-20,177,Grassland,Bracken,NY5029314617,373,26/09/2025,grass,moss,rumex acetosa,,,54.524388,-2.7694931,Present
-36,178,Grassland,Grass,NY5021914712,396,26/09/2025,Campanula rotundifolia,,,,,54.525234,-2.7706524,Absent
-56,179,Grassland,Grass,NY5013614754,407,26/09/2025,Rumex acetosa,ranunculus,,,,54.525604,-2.7719417,Absent
-43,180,Grassland,Grass,NY5018814806,416,26/09/2025,ranunculus,,,,,54.526076,-2.7711472,Absent
-37,181,Grassland,Grass,NY5012914796,413,26/09/2025,moss,white clover,ranunculus,,,54.52598,-2.772057,Absent
-35,182,Grassland,Grass,NY5007114760,412,26/09/2025,moss,ranunculus,,,,54.525651,-2.7729469,Absent
-21,183,Grassland,Grass,NY5003114704,400,26/09/2025,moss,ranunculus,,,,54.525144,-2.7735554,Absent
+Sample ID,Mesocosm,waypoint,Habitat,Vegetation,os grid reference,elevation (m),date,veg cover species,veg cover species,veg cover species,veg cover species,veg cover species,LatitudeN,LongitudeE,Bracken
+1-137-HB,1,137,Heathland,Bracken,NY4980914939,414,24/09/2025,myrtilus,,,,,54.527234,-2.7770252,Present
+2-138-HB,2,138,Heathland,Bracken,NY4986314917,408,24/09/2025,moss,,,,,54.527041,-2.7761871,Present
+3-135-HH,3,135,Heathland,Heather,NY4971815004,415,24/09/2025,moss,,,,,54.527809,-2.7784422,Absent
+4-130-HB,4,130,Heathland,Bracken,NY4980714863,413,24/09/2025,grass,moss,,,,54.526551,-2.7770431,Present
+5-139-HH,5,139,Heathland,Heather,NY4992314936,413,24/09/2025,moss,,,,,54.527218,-2.7752634,Absent
+6-125-HH,6,125,Heathland,Heather,NY5000914786,405,24/09/2025,moss,,,,,54.525879,-2.7739092,Absent
+7-136-HH,7,136,Heathland,Heather,NY4978214973,417,24/09/2025,moss,,,,,54.527537,-2.7774481,Absent
+8-133-HB,8,133,Heathland,Bracken,NY4971314953,421,24/09/2025,grass,,,,,54.52735,-2.7785107,Present
+9-134-HB,9,134,Heathland,Bracken,NY4965515004,431,24/09/2025,moss,,,,,54.527802,-2.7794155,Present
+10-129-HH,10,129,Heathland,Heather,NY4982414790,409,24/09/2025,myrtilus,moss,,,,54.525896,-2.776768,Absent
+11-142-HH,11,142,Heathland,Heather,NY5004414903,416,24/09/2025,moss,myrtilus,,,,54.526933,-2.7733884,Absent
+12-141-HH,12,141,Heathland,Heather,NY5003114982,411,24/09/2025,grass,moss,myrtilus,,,54.527642,-2.7736026,Absent
+13-127-HH,13,127,Heathland,Heather,NY4992214797,403,24/09/2025,grass,,,,,54.525969,-2.7752552,Absent
+14-150-HH,14,150,Heathland,Heather,NY5040715160,390,25/09/2025,myrtilus,moss,,,,54.529279,-2.7678235,Absent
+15-154-GB,15,154,Grassland,Bracken,NY5034714832,384,25/09/2025,grass,ranunculus,,,,54.526325,-2.7686952,Present
+16-128-HH,16,128,Heathland,Heather,NY4987714738,408,24/09/2025,myrtilus,moss,,,,54.525434,-2.7759403,Absent
+17-166-GB,17,166,Grassland,Bracken,NY5062614884,343,25/09/2025,grass,,,,,54.52682,-2.7643935,Present
+18-167-GB,18,167,Grassland,Bracken,NY5066514897,331,25/09/2025,ranunculus,grass,,,,54.526941,-2.7637932,Present
+19-147-HH,19,147,Heathland,Heather,NY5024715073,426,25/09/2025,moss,myrtilus,,,,54.528481,-2.7702809,Absent
+20-177-GB,20,177,Grassland,Bracken,NY5029314617,373,26/09/2025,grass,moss,rumex acetosa,,,54.524388,-2.7694931,Present
+21-183-GG,21,183,Grassland,Grass,NY5003114704,400,26/09/2025,moss,ranunculus,,,,54.525144,-2.7735554,Absent
+22-165-GG,22,165,Grassland,Grass,NY5057814897,358,25/09/2025,grass,ranunculus,,,,54.526932,-2.7651373,Absent
+23-146-HH,23,146,Heathland,Heather,NY5022414972,430,25/09/2025,moss,myrtilus,,,,54.527571,-2.7706191,Absent
+24-169-GB,24,169,Grassland,Bracken,NY5073814891,312,26/09/2025,rumex acetosa,moss,grass,,,54.526894,-2.7626643,Present
+25-174-GB,25,174,Grassland,Bracken,NY5041914531,342,26/09/2025,moss,rumex acetosa,ranunculus,,,54.523628,-2.767532,Present
+26-159-GB,26,159,Grassland,Bracken,NY5024514668,392,25/09/2025,grass,ranunculus,rumex acetosa,,,54.524842,-2.7702432,Present
+27-171-GB,27,171,Grassland,Bracken,NY5065014732,327,26/09/2025,grass,,,,,54.525456,-2.7639972,Present
+28-176-GB,28,176,Grassland,Bracken,NY5032214581,361,26/09/2025,rumex acetosa,ranunculus,,,,54.524067,-2.769039,Present
+29-148-HB,29,148,Heathland,Bracken,NY5027615080,419,25/09/2025,moss,oxalis acetosa,,,,54.528547,-2.769834,Present
+30-155-GG,30,155,Grassland,Grass,NY5029214825,395,25/09/2025,grass,clover,ranunculus,dandelion,,54.526257,-2.7695437,Absent
+32-123-HB,32,123,Heathland,Bracken,NY5007814809,410,24/09/2025,moss,grass,,,,54.526092,-2.7728471,Present
+33-170-GB,33,170,Grassland,Bracken,NY5071114831,311,26/09/2025,grass,,,,,54.526352,-2.7630714,Present
+34-163-GG,34,163,Grassland,Grass,NY5050514840,374,25/09/2025,grass,ranunculus,,,,54.526413,-2.7662555,Absent
+35-182-GG,35,182,Grassland,Grass,NY5007114760,412,26/09/2025,moss,ranunculus,,,,54.525651,-2.7729469,Absent
+36-178-GG,36,178,Grassland,Grass,NY5021914712,396,26/09/2025,Campanula rotundifolia,,,,,54.525234,-2.7706524,Absent
+37-181-GG,37,181,Grassland,Grass,NY5012914796,413,26/09/2025,moss,white clover,ranunculus,,,54.52598,-2.772057,Absent
+38-156-GB,38,156,Grassland,Bracken,NY5028914792,403,25/09/2025,grass,ranunculus,nettles,,,54.52596,-2.7695845,Present
+39-173-GG,39,173,Grassland,Grass,NY5050414579,335,26/09/2025,moss,ranunculus,,,,54.524067,-2.766227,Absent
+40-158-GB,40,158,Grassland,Bracken,NY5018914712,403,25/09/2025,grass,ranunculus,moss,rumex acetosa,,54.525231,-2.7711158,Present
+41-157-GG,41,157,Grassland,Grass,NY5021514766,413,25/09/2025,grass,clover,,,,54.525719,-2.7707233,Absent
+42-144-HB,42,144,Heathland,Bracken,NY5021314862,420,25/09/2025,grass,,,,,54.526582,-2.7707704,Present
+43-180-GG,43,180,Grassland,Grass,NY5018814806,416,26/09/2025,ranunculus,,,,,54.526076,-2.7711472,Absent
+44-153-HH,44,153,Heathland,Heather,NY5043215011,394,25/09/2025,grass,myrtilus,,,,54.527942,-2.7674121,Absent
+45-161-GB,45,161,Grassland,Bracken,NY5043414756,370,25/09/2025,grass,rumex acetosa,ranunculus,,,54.525651,-2.7673382,Present
+46-126-HH,46,126,Heathland,Heather,NY4996414773,404,24/09/2025,grass,,,,,54.525757,-2.7746022,Absent
+47-145-HB,47,145,Heathland,Bracken,NY5023414922,419,25/09/2025,grass,,,,,54.527123,-2.7704562,Present
+48-131-HB,48,131,Heathland,Bracken,NY4979114908,416,24/09/2025,myrtilus,moss,,,,54.526953,-2.777298,Present
+49-140-HB,49,140,Heathland,Bracken,NY4993314995,407,24/09/2025,grass,,,,,54.527749,-2.7751189,Present
+50-160-GG,50,160,Grassland,Grass,NY5031014711,384,25/09/2025,grass,clover,red clover,ranunculus,rumex acetosa,54.525234,-2.7692463,Absent
+51-132-HH,51,132,Heathland,Heather,NY4977514939,418,24/09/2025,myrtilus,moss,,,,54.52723,-2.7775504,Absent
+52-151-HB,52,151,Heathland,Bracken,NY5048315206,386,25/09/2025,moss,grass,,,,54.529699,-2.766657,Present
+53-149-HB,53,149,Heathland,Bracken,NY5031815105,401,25/09/2025,moss,grass,,,,54.528776,-2.7691893,Present
+54-164-GB,54,164,Grassland,Bracken,NY5054414869,366,25/09/2025,moss,rumex acetosa,,,,54.526677,-2.7656579,Present
+55-124-HB,55,124,Heathland,Bracken,NY5005214821,417,24/09/2025,grass,moss,,,,54.526197,-2.7732508,Present
+56-179-GG,56,179,Grassland,Grass,NY5013614754,407,26/09/2025,Rumex acetosa,ranunculus,,,,54.525604,-2.7719417,Absent
+57-152-HB,57,152,Heathland,Bracken,NY5055615180,388,25/09/2025,grass,myrtilus,,,,54.529473,-2.7655248,Present
+58-162-GG,58,162,Grassland,Grass,NY5045914827,376,25/09/2025,grass,thistle,ranunculus,,,54.526291,-2.766964,Absent
+59-172-GG,59,172,Grassland,Grass,NY5055514623,331,26/09/2025,ranunculus,moss,,,,54.524468,-2.7654465,Absent
+60-168-GB,60,168,Grassland,Bracken,NY5075914952,292,25/09/2025,grass,ranunculus,,,,54.527444,-2.7623501,Present

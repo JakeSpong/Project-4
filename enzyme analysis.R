@@ -7,6 +7,11 @@ library(readr) #for reading in many files
 library(dplyr) #for making factor columns
 library(stringr) #for making factor columns
 library(glmmTMB) #for modelling results
+library(sf) #for maniuplating sample coordinates
+library(emmeans) # post-hoc comparisons
+library(DHARMa)      # model diagnostics
+library(multcomp) #for significance letters
+library(purrr) # for mapping when running GLMMs
 library(svglite)
 
 library(tidyverse)
@@ -16,7 +21,6 @@ library(here)
 library(ggpubr)
 library(multcompView) #for significant difference letters
 library(scales)
-library(dplyr)
 library(rlang)
 #### calculate soil moisture content at end of mesocosm experiment NO LONGER NEEDED ----
 
@@ -121,8 +125,7 @@ names(slopes) <- rownames(std_raw)
 #mean slope
 mean_slope <- mean(slopes)
 
-## plot the regression slopes ---- NO LONGER NEEDED----
-
+#plot the regression slopes
 
 # reshape data into long format for plotting
 plot_data <- std_table
@@ -381,6 +384,15 @@ write.csv(results, "Processed Data/EEA (nmol per h per g dry weight).csv", row.n
 
 #load in the EEA data
 results <- read_csv("Processed Data/EEA (nmol per h per g dry weight).csv")
+#load in explanatory covaraite data
+expcovs <- read_csv("Data/Explanatory covariates.csv")
+
+#add explanatory covariate data to the results df, matching regardless of -M suffix
+results <- results %>%
+  mutate(join_id = str_remove(`Sample ID`, "-M$")) %>%
+  left_join(expcovs, by = c("join_id" = "Sample ID")) %>%
+  dplyr::select(-join_id)
+
 
 # Split by Condition first
 mesocosm_df <- results %>% filter(Condition == "Mesocosm")
@@ -419,12 +431,14 @@ initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour per g dry soil`, 
   facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
   scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
   scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  coord_cartesian(ylim = c(0, 80)) +
   labs(x = "Habitat", 
        #tildes used to get spaces right
        y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-        strip.background = element_rect(fill = "grey85", color = "black"))
+        strip.background = element_rect(fill = "grey85", color = "black"),
+        panel.grid = element_blank())
 show(initial)
 #save the figure
 ggsave("Figures/initial_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
@@ -439,16 +453,18 @@ final_subset <- ggplot(mesocosm_subset, aes(x = Habitat, y = `EEA per hour per g
   facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
   scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
   scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  coord_cartesian(ylim = c(0, 80)) +
   labs(x = "Habitat", 
        #tildes used to get spaces right
        y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-        strip.background = element_rect(fill = "grey85", color = "black"))
+        strip.background = element_rect(fill = "grey85", color = "black"),
+        panel.grid = element_blank())
 
 show(final_subset)
 #save the figure
-ggsave("Figures/final_subset_EEA_per_hour_by_habitat_bracken.svg", plot = final_all, 
+ggsave("Figures/final_subset_EEA_per_hour_by_habitat_bracken.svg", plot = final_subset, 
        width = 10, height = 7, dpi = 300)
 
 
@@ -461,19 +477,33 @@ final_all <- ggplot(mesocosm_all, aes(x = Habitat, y = `EEA per hour per g dry s
   facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
   scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
   scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  coord_cartesian(ylim = c(0, 80)) +
   labs(x = "Habitat", 
        #tildes used to get spaces right
        y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-        strip.background = element_rect(fill = "grey85", color = "black"))
+        strip.background = element_rect(fill = "grey85", color = "black"),
+        panel.grid = element_blank())
 
 show(final_all)
 #save the figure
 ggsave("Figures/final_all_EEA_per_hour_by_habitat_bracken.svg", plot = final_all, 
        width = 10, height = 7, dpi = 300)
 
-#run models to see if differences are significant ----
+#run models to see if differences are significant NEEDS PREVIOUS TAB TO WORK----
+
+#initial conditions
+
+# convert longitude, latitude to sf object for initial field samples
+sf_data <- st_as_sf(field_df, coords = c("LongitudeE", "LatitudeN"), crs = 4326)
+# project to UTM (example: zone depends on your location)
+sf_data <- st_transform(sf_data, crs = 32630)  # UK example
+# extract projected coords
+coords <- st_coordinates(sf_data)
+#coordinates in m in the Universal Transverse Meractor cartesian coordinate system
+field_df$x <- coords[,1]
+field_df$y <- coords[,2]
 
 #first split out data for each enzyme
 sample_types <- unique(field_df$SampleType)
@@ -482,21 +512,164 @@ split_dfs <- field_df %>%
   group_split() %>%
   setNames(sample_types)
 
-gluc <- split_dfs[["Gluc"]] 
-
 #check the data distripution for each enzyme - they all look right skewed!
-hist(split_dfs[["Xylo"]]$`EEA per hour`)
-print(split_dfs[["Xylo"]], n = 31)
+hist(split_dfs[["Gluc"]]$`EEA per hour per g dry soil`)
 
-library(purrr)
-
+#run glmms, using log function to account for right skewed distribution
 models <- split_dfs %>%
-  map(~ glmmTMB(`EEA per hour` ~ Habitat*Bracken, 
+  map(~ glmmTMB(`EEA per hour per g dry soil` ~ Habitat*Bracken, 
                 family = Gamma(link = "log"), 
                 data = .x))
 
-# View summary for each model
-models %>% map(summary)
+
+#analyse each enzyme in turn
+model <- models$Xylo
+#look at the summary
+summary(model)
+
+# ── Confirm no spatial autocorrelation in residuals ───────────────────────────
+sim_res <- simulateResiduals(model)
+testSpatialAutocorrelation(sim_res, x = split_dfs$Xylo$x, y = split_dfs$Xylo$y)
+sim_res <- simulateResiduals(model)
+#check the plot for residuals, residuals vs predicted
+plot(sim_res)
+#check dispersion
+testDispersion(sim_res)
+
+# ── Type II significance of fixed effects ────────────────────────────────────
+car::Anova(model, type = "II")
+
+# ── Post-hoc comparisons ──────────────────────────────────────────────────────
+emm <- emmeans(model, ~ Habitat*Bracken, type = "response")
+# ── Pairwise contrasts to confirm which differences are significant ────────────
+pairs(emm, adjust = "tukey")
+#get signficance letters
+cld_result <- cld(emm, Letters = letters, adjust = "tukey")
+# 5. View results
+print(cld_result)
+
+# ── Or more targeted: effect of bracken within each habitat ───────────────────
+emm_hab <- emmeans(model, ~ Bracken | Habitat, type = "response")
+pairs(emm_hab, adjust = "tukey")
+
+#subset of final conditions to match those samples used under initial conditions
+
+# convert longitude, latitude to sf object for initial field samples
+sf_data <- st_as_sf(mesocosm_subset, coords = c("LongitudeE", "LatitudeN"), crs = 4326)
+# project to UTM (example: zone depends on your location)
+sf_data <- st_transform(sf_data, crs = 32630)  # UK example
+# extract projected coords
+coords <- st_coordinates(sf_data)
+#coordinates in m in the Universal Transverse Meractor cartesian coordinate system
+mesocosm_subset$x <- coords[,1]
+mesocosm_subset$y <- coords[,2]
+
+#first split out data for each enzyme
+sample_types <- unique(mesocosm_subset$SampleType)
+split_dfs <- mesocosm_subset %>%
+  group_by(SampleType) %>%
+  group_split() %>%
+  setNames(sample_types)
+
+#check the data distripution for each enzyme - they all look right skewed!
+hist(split_dfs[["Xylo"]]$`EEA per hour per g dry soil`)
+
+#run glmms, using log function to account for right skewed distribution
+models <- split_dfs %>%
+  map(~ glmmTMB(`EEA per hour per g dry soil` ~ Habitat*Bracken, 
+                family = Gamma(link = "log"), 
+                data = .x))
+
+#analyse each enzyme in turn
+model <- models$Xylo
+#look at the summary
+summary(model)
+
+# ── Confirm no spatial autocorrelation in residuals ───────────────────────────
+sim_res <- simulateResiduals(model)
+#change the enzymes when running the mdodels
+testSpatialAutocorrelation(sim_res, x = split_dfs$Xylo$x, y = split_dfs$Xylo$y)
+sim_res <- simulateResiduals(model)
+#check the plot for residuals, residuals vs predicted
+plot(sim_res)
+#check dispersion
+testDispersion(sim_res)
+
+# ── Type II significance of fixed effects ────────────────────────────────────
+car::Anova(model, type = "II")
+
+# ── Post-hoc comparisons ──────────────────────────────────────────────────────
+emm <- emmeans(model, ~ Habitat, type = "response")
+# ── Pairwise contrasts to confirm which differences are significant ────────────
+pairs(emm, adjust = "tukey")
+#get signficance letters
+cld_result <- cld(emm, Letters = letters, adjust = "tukey")
+# 5. View results
+print(cld_result)
+
+# ── Or more targeted: effect of bracken within each habitat ───────────────────
+emm_hab <- emmeans(model, ~ Bracken | Habitat, type = "response")
+pairs(emm_hab, adjust = "tukey")
+
+
+#allf final conditions to match those samples used under initial conditions
+
+# convert longitude, latitude to sf object for initial field samples
+sf_data <- st_as_sf(mesocosm_all, coords = c("LongitudeE", "LatitudeN"), crs = 4326)
+# project to UTM (example: zone depends on your location)
+sf_data <- st_transform(sf_data, crs = 32630)  # UK example
+# extract projected coords
+coords <- st_coordinates(sf_data)
+#coordinates in m in the Universal Transverse Meractor cartesian coordinate system
+mesocosm_all$x <- coords[,1]
+mesocosm_all$y <- coords[,2]
+
+#first split out data for each enzyme
+sample_types <- unique(mesocosm_all$SampleType)
+split_dfs <- mesocosm_all %>%
+  group_by(SampleType) %>%
+  group_split() %>%
+  setNames(sample_types)
+
+#check the data distripution for each enzyme - they all look right skewed!
+hist(split_dfs[["Xylo"]]$`EEA per hour per g dry soil`)
+
+#run glmms, using log function to account for right skewed distribution
+models <- split_dfs %>%
+  map(~ glmmTMB(`EEA per hour per g dry soil` ~ Habitat*Bracken, 
+                family = Gamma(link = "log"), 
+                data = .x))
+
+#analyse each enzyme in turn
+model <- models$NAG
+#look at the summary
+summary(model)
+
+# ── Confirm no spatial autocorrelation in residuals ───────────────────────────
+sim_res <- simulateResiduals(model)
+testSpatialAutocorrelation(sim_res, x = split_dfs$NAG$x, y = split_dfs$NAG$y)
+sim_res <- simulateResiduals(model)
+#check the plot for residuals, residuals vs predicted
+plot(sim_res)
+#check dispersion
+testDispersion(sim_res)
+
+# ── Type II significance of fixed effects ────────────────────────────────────
+car::Anova(model, type = "II")
+
+# ── Post-hoc comparisons ──────────────────────────────────────────────────────
+emm <- emmeans(model, ~ Habitat, type = "response")
+# ── Pairwise contrasts to confirm which differences are significant ────────────
+pairs(emm, adjust = "tukey")
+#get signficance letters
+cld_result <- cld(emm, Letters = letters, adjust = "tukey")
+# 5. View results
+print(cld_result)
+
+# ── Or more targeted: effect of bracken within each habitat ───────────────────
+emm_hab <- emmeans(model, ~ Bracken | Habitat, type = "response")
+pairs(emm_hab, adjust = "tukey")
+
 
 #INITIAL CODE WORKING ON ONE MICROPLATE
 #### now analyse each microplate gain 782----
