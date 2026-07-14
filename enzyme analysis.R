@@ -378,49 +378,99 @@ write.csv(results, "Processed Data/EEA (nmol per h per g dry weight).csv", row.n
 
 
 #### generate boxplot of EEAs under inital conditons ----
-#EEA from initial field conditions
-field_df <- results %>%
-  filter(Condition == "Field")
+
+#load in the EEA data
+results <- read_csv("Processed Data/EEA (nmol per h per g dry weight).csv")
+
+# Split by Condition first
+mesocosm_df <- results %>% filter(Condition == "Mesocosm")
+field_df    <- results %>% filter(Condition == "Field")
+
+# Strip the "-M" suffix so IDs are directly comparable to Field
+mesocosm_df <- mesocosm_df %>%
+  mutate(BaseID = gsub("-M$", "", `Sample ID`))
+
+#generate a column to compare sample IDs from field and end of mesocosm
+field_df <- field_df %>%
+  mutate(BaseID = `Sample ID`)  # Field IDs already have no -M suffix
+
+# Keep only IDs present in both sets
+common_ids <- intersect(mesocosm_df$BaseID, field_df$BaseID)
+
+#subset of mesocosm end samples to match those from initial conditions
+mesocosm_subset <- mesocosm_df %>% filter(BaseID %in% common_ids)
+#all the field samples
+field_df    <- field_df %>% filter(BaseID %in% common_ids)
+#all mesocosm end samples
+mesocosm_all <- mesocosm_df
+
+sampletype_labels <- c(
+  "Gluc" = "β-glucosidase",
+  "NAG" = "β-1,4-N-acetyl-glucosaminidase",
+  "Phos" = "Acid phosphatase",
+  "Xylo" = "β-xylosidase"
+)
 
 #plot the intial EEAs
-initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour`, fill = Bracken)) +
+initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour per g dry soil`, fill = Bracken)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.6) +
   geom_point(position = position_jitterdodge(jitter.width = 0.15), 
              aes(color = Bracken), alpha = 0.6, size = 1.5) +
-  facet_wrap(~ SampleType) +
+  facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
   scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
   scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
-  labs(x = "Habitat", y = "EEA per hour") +
+  labs(x = "Habitat", 
+       #tildes used to get spaces right
+       y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
         strip.background = element_rect(fill = "grey85", color = "black"))
-
 show(initial)
 #save the figure
 ggsave("Figures/initial_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
        width = 10, height = 7, dpi = 300)
 
 
-#### generate boxplot of EEAs after mesocosm experiment ----
-field_df <- results %>%
-  filter(Condition == "Mesocosm")
-
-#plot the intial EEAs
-initial <- ggplot(field_df, aes(x = Habitat, y = `EEA per hour`, fill = Bracken)) +
+#plot subset of final EEAs that match the initial (for a fair comparison of change)
+final_subset <- ggplot(mesocosm_subset, aes(x = Habitat, y = `EEA per hour per g dry soil`, fill = Bracken)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.6) +
   geom_point(position = position_jitterdodge(jitter.width = 0.15), 
              aes(color = Bracken), alpha = 0.6, size = 1.5) +
-  facet_wrap(~ SampleType) +
+  facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
   scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
   scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
-  labs(x = "Habitat", y = "EEA per hour") +
+  labs(x = "Habitat", 
+       #tildes used to get spaces right
+       y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
         strip.background = element_rect(fill = "grey85", color = "black"))
 
-show(initial)
+show(final_subset)
 #save the figure
-ggsave("Figures/final_EEA_per_hour_by_habitat_bracken.svg", plot = initial, 
+ggsave("Figures/final_subset_EEA_per_hour_by_habitat_bracken.svg", plot = final_all, 
+       width = 10, height = 7, dpi = 300)
+
+
+
+#plot final EEA from all reps (useful for telling differences between rainfall treatments)
+final_all <- ggplot(mesocosm_all, aes(x = Habitat, y = `EEA per hour per g dry soil`, fill = Bracken)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.15), 
+             aes(color = Bracken), alpha = 0.6, size = 1.5) +
+  facet_wrap(~ SampleType, labeller = labeller(SampleType = sampletype_labels)) +
+  scale_fill_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  labs(x = "Habitat", 
+       #tildes used to get spaces right
+       y = expression("Extracellular enzyme activity (nmol" ~~ hr^-1 ~ "g"^-1 ~ "dry weight)")) +
+  theme_minimal() +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+        strip.background = element_rect(fill = "grey85", color = "black"))
+
+show(final_all)
+#save the figure
+ggsave("Figures/final_all_EEA_per_hour_by_habitat_bracken.svg", plot = final_all, 
        width = 10, height = 7, dpi = 300)
 
 #run models to see if differences are significant ----
