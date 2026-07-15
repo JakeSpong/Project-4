@@ -12,6 +12,8 @@ library(emmeans) # post-hoc comparisons
 library(DHARMa)      # model diagnostics
 library(multcomp) #for significance letters
 library(purrr) # for mapping when running GLMMs
+library(coin) #for checking effect sizes of Wilcox test
+library(rstatix) #for wilcox test
 library(svglite)
 
 library(tidyverse)
@@ -672,142 +674,141 @@ pairs(emm_hab, adjust = "tukey")
 
 
 #INITIAL CODE WORKING ON ONE MICROPLATE
-#### now analyse each microplate gain 782----
-Gluc1 <- read_csv("Data/Microplate Reader Data/26-06-2026 plates gain782/Gluc1.csv")
-#just the data we want
-df <- Gluc1[12:20, 1:13]
-#name the columns and rows
-colnames(df) <- as.character(df[1, ])
-#delete the row of names
-df <- df[-1, ]
-#name the id column, set to row name
-names(df)[1] <- "row_id"
-df <- column_to_rownames(df, var = "row_id")
-#convert to df
-df <- as.data.frame(df)
-#ensure numbers are coded as numbers
-df <- as.data.frame(lapply(df, function(x) as.numeric(as.character(x))), check.names = FALSE)
+# run t-test to compare EEAs from field to end of mesocosm ----
 
-#compute outliers
-#top 4 rows are sample, bottom 4 rows are control
-group_size <- 4
-n_groups <- ceiling(nrow(df) / group_size)
-group_id <- rep(1:n_groups, each = group_size, length.out = nrow(df))
+#load in the EEA data
+results <- read_csv("Processed Data/EEA (nmol per h per g dry weight).csv")
+#load in explanatory covaraite data
+expcovs <- read_csv("Data/Explanatory covariates.csv")
 
-# quantile(..., type = 7) is R's default and matches Excel's QUARTILE.INC
-quartile_df <- data.frame(
-  SampleID  = character(),
-  Group     = integer(),
-  Q1        = numeric(),
-  Q3        = numeric(),
-  IQR       = numeric(),
-  LowerBound = numeric(),
-  UpperBound = numeric(),
-  stringsAsFactors = FALSE
-)
+#add explanatory covariate data to the results df, matching regardless of -M suffix
+results <- results %>%
+  mutate(join_id = str_remove(`Sample ID`, "-M$")) %>%
+  left_join(expcovs, by = c("join_id" = "Sample ID")) %>%
+  dplyr::select(-join_id)
 
-for (col in colnames(df)) {
-  for (g in unique(group_id)) {
-    vals <- df[group_id == g, col]
-    q1 <- quantile(vals, 0.25, type = 7, na.rm = TRUE)
-    q3 <- quantile(vals, 0.75, type = 7, na.rm = TRUE)
-    iqr <- q3 - q1
-    lower <- q1 - 1.5 * iqr
-    upper <- q3 + 1.5 * iqr
-    quartile_df <- rbind(quartile_df,
-                         data.frame(SampleID = col, Group = g,
-                                    Q1 = q1, Q3 = q3, IQR = iqr,
-                                    LowerBound = lower, UpperBound = upper))
-  }
-}
+#define samples with -M suffix as being from end of experiment, those without as from the start of the experiment
+results <- results %>%
+  mutate(
+    BaseID = str_remove(`Sample ID`, "-M$"),      # strip the -M suffix
+    TimePoint = if_else(str_detect(`Sample ID`, "-M$"), "End", "Start")
+  )
 
-rownames(quartile_df) <- NULL
-#rename so we can easily see which data is the Sample (top 4 microplate rows), which is the control (bottom 4 microplate rows)
-quartile_df$Group <- factor(quartile_df$Group, levels = c(1, 2), labels = c("Extract", "Control"))
-quartile_df
+# Pivot wider, carrying Habitat and Bracken through as identifying columns
+# (they should be constant within a BaseID, so no information is lost)
+df_wide <- results %>%
+  pivot_wider(
+    id_cols = c(BaseID, SampleType, Habitat, Bracken),
+    names_from = TimePoint,
+    values_from = `EEA per hour per g dry soil`
+  ) %>%
+  filter(!is.na(Start) & !is.na(End))
 
-# Remove outliers, using the same Sample/Control grouping
-group_labels <- c(`1` = "Extract", `2` = "Control")
+#check for normality in the differences
+normality_check <- df_wide %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  summarise(
+    n_pairs = n(),
+    shapiro_p = shapiro.test(End - Start)$p.value,
+    .groups = "drop"
+  )
+#3 not normal, so use wilcox for consistency of tests
+normality_check
 
-df_no_outliers <- df  # start fresh from the original data
-#log to store the outliers removed
-outlier_log <- data.frame(
-  RowLabel   = character(),
-  SampleID   = character(),
-  Group      = character(),
-  Value      = numeric(),
-  LowerBound = numeric(),
-  UpperBound = numeric(),
-  stringsAsFactors = FALSE
-)
-#remove any outliers
-for (col in colnames(df)) {
-  for (g in unique(group_id)) {
-    rows_in_group <- which(group_id == g)
-    g_label <- group_labels[[as.character(g)]]
-    
-    bounds <- quartile_df[quartile_df$SampleID == col & quartile_df$Group == g_label, ]
-    lower <- bounds$LowerBound
-    upper <- bounds$UpperBound
-    
-    vals <- df_no_outliers[[col]][rows_in_group]
-    is_outlier <- vals < lower | vals > upper
-    is_outlier[is.na(is_outlier)] <- FALSE
-    
-    if (any(is_outlier)) {
-      outlier_log <- rbind(outlier_log, data.frame(
-        RowLabel   = rownames(df)[rows_in_group][is_outlier],
-        SampleID   = col,
-        Group      = g_label,
-        Value      = vals[is_outlier],
-        LowerBound = lower,
-        UpperBound = upper
-      ))
-    }
-    
-    vals[is_outlier] <- NA
-    df_no_outliers[[col]][rows_in_group] <- vals
-  }
-}
+#pivot back to long
+df_long <- df_wide %>%
+  pivot_longer(
+    cols = c(Start, End),
+    names_to = "TimePoint",
+    values_to = "EEA per hour per g dry soil"
+  ) %>%
+  mutate(TimePoint = factor(TimePoint, levels = c("Start", "End")))
+#run the wilcox tests
+wilcox_results <- df_long %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  rstatix::wilcox_test(`EEA per hour per g dry soil` ~ TimePoint, paired = TRUE) %>%
+  group_by(SampleType) %>%
+  rstatix::adjust_pvalue(method = "BH") %>%
+  rstatix::add_significance()
+#view results
+wilcox_results
+#check effect sizes
+effect_sizes <- df_long %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  rstatix::wilcox_effsize(`EEA per hour per g dry soil` ~ TimePoint, paired = TRUE)
+#view effect sizes
+effect_sizes
 
-rownames(outlier_log) <- NULL
-df_no_outliers
-outlier_log
 
-#average the sample and control for each
 
-#load in the standard curve slope
 
-#### now analyse each microplate gain 782----
-stnd_slopes <- read_csv("Processed Data/mean_slope_output.csv")
+# Back to long format for rstatix (Start/End as levels of TimePoint again)
+df_wide_long <- df_wide %>%
+  pivot_longer(cols = c(Start, End), names_to = "TimePoint", values_to = "Activity") %>%
+  mutate(TimePoint = factor(TimePoint, levels = c("Start", "End")))
 
-#create empty dataframe
-result_df <- data.frame(
-  SampleID    = character(),
-  SampleMean  = numeric(),
-  ControlMean = numeric(),
-  Difference  = numeric(),
-  Concentration = numeric(),
-  stringsAsFactors = FALSE
-)
+#check normality of differences for each enzyme
+results_wide %>%
+  group_by(SampleType) %>%
+  summarise(shapiro_p = shapiro.test(End - Start)$p.value)
 
-for (col in colnames(df_no_outliers)) {
-  ##average the extract and cnotrol abordbances
-  sample_mean  <- mean(df_no_outliers[[col]][group_id == 1], na.rm = TRUE)
-  control_mean <- mean(df_no_outliers[[col]][group_id == 2], na.rm = TRUE)
-  #subtract control from extract
-  difference   <- sample_mean - control_mean
-  #divide by standarc curve slope to get moles per well
-  concentration <- difference / stnd_slopes[1, 2]
-  #bind together into table
-  result_df <- rbind(result_df, data.frame(
-    SampleID    = col,
-    SampleMean  = sample_mean,
-    ControlMean = control_mean,
-    Difference  = difference,
-    Concentration = concentration
-  ))
-}
+#differences are not normal, so use a wilcox test, not t test
+df_wide_long <- results_wide %>%
+  pivot_longer(cols = c(Start, End), names_to = "TimePoint", values_to = "Activity")
 
-rownames(result_df) <- NULL
-result_df
+#compute the wilcox test
+df_wide_long %>%
+  group_by(SampleType) %>%
+  rstatix::wilcox_test(Activity ~ TimePoint, paired = TRUE) %>%
+  adjust_pvalue(method = "BH") %>%
+  add_significance()
+#check effect size too
+df_wide_long %>%
+  group_by(SampleType) %>%
+  wilcox_effsize(Activity ~ TimePoint, paired = TRUE)
+
+
+ggplot(df_wide_long, aes(x = TimePoint, y = Activity)) +
+  geom_boxplot(aes(fill = TimePoint), width = 0.4, alpha = 0.5, outlier.shape = NA) +
+  geom_line(aes(group = BaseID), color = "grey50", alpha = 0.5) +
+  geom_point(aes(color = TimePoint), size = 2, alpha = 0.7) +
+  facet_wrap(~ SampleType, scales = "free_y") +
+  scale_fill_manual(values = c("Start" = "#4C72B0", "End" = "#DD8452")) +
+  scale_color_manual(values = c("Start" = "#4C72B0", "End" = "#DD8452")) +
+  labs(
+    title = "Paired enzyme activity: Start vs End",
+    x = NULL,
+    y = "Activity"
+  ) +
+  theme_bw(base_size = 13) +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "grey90"),
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+#visualise
+sample_comparisons <- ggplot(df_long, aes(x = TimePoint, y = `EEA per hour per g dry soil`)) +
+  geom_line(aes(group = BaseID), color = "grey60", alpha = 0.5) +
+  geom_point(aes(color = Bracken), size = 2, alpha = 0.8) +
+  facet_grid(SampleType ~ Habitat + Bracken, scales = "free_y") +
+  scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
+  labs(
+    x = NULL,
+    y = "EEA per hour per g dry soil",
+    color = "Bracken"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position = "top",
+    strip.background = element_rect(fill = "grey90"),
+    strip.text = element_text(face = "bold", size = 9),
+    panel.grid.minor = element_blank()
+  )
+show(sample_comparisons)
+#save the figure
+ggsave("Figures/EEA_sample-start-vs-end.svg", plot = sample_comparisons, 
+       width = 10, height = 7, dpi = 300)
+
+
