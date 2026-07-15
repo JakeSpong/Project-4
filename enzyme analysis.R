@@ -672,9 +672,7 @@ print(cld_result)
 emm_hab <- emmeans(model, ~ Bracken | Habitat, type = "response")
 pairs(emm_hab, adjust = "tukey")
 
-
-#INITIAL CODE WORKING ON ONE MICROPLATE
-# run t-test to compare EEAs from field to end of mesocosm ----
+# run wilcox test to compare EEAs from field to end of mesocosm ----
 
 #load in the EEA data
 results <- read_csv("Processed Data/EEA (nmol per h per g dry weight).csv")
@@ -812,3 +810,90 @@ ggsave("Figures/EEA_sample-start-vs-end.svg", plot = sample_comparisons,
        width = 10, height = 7, dpi = 300)
 
 
+
+# do EEAs in final all differ with rainfall treatment? ----
+
+#load in the EEA data
+results <- read_csv("Processed Data/EEA (nmol per h per g dry weight).csv")
+#load in explanatory covaraite data
+expcovs <- read_csv("Data/Explanatory covariates.csv")
+
+#add explanatory covariate data to the results df, matching regardless of -M suffix
+results <- results %>%
+  mutate(join_id = str_remove(`Sample ID`, "-M$")) %>%
+  left_join(expcovs, by = c("join_id" = "Sample ID")) %>%
+  dplyr::select(-join_id)
+
+# Split by Condition first
+mesocosm_df <- results %>% filter(Condition == "Mesocosm")
+
+# convert longitude, latitude to sf object for initial field samples
+sf_data <- st_as_sf(mesocosm_df, coords = c("LongitudeE", "LatitudeN"), crs = 4326)
+# project to UTM (example: zone depends on your location)
+sf_data <- st_transform(sf_data, crs = 32630)  # UK example
+# extract projected coords
+coords <- st_coordinates(sf_data)
+#coordinates in m in the Universal Transverse Meractor cartesian coordinate system
+mesocosm_df$x <- coords[,1]
+mesocosm_df$y <- coords[,2]
+
+#subset out for each enzyme
+#first split out data for each enzyme
+sample_types <- unique(mesocosm_df$SampleType)
+split_dfs <- mesocosm_df %>%
+  group_by(SampleType) %>%
+  group_split() %>%
+  setNames(sample_types)
+
+#check the data distripution for each enzyme - they all look right skewed!
+hist(split_dfs[["Xylo"]]$`EEA per hour per g dry soil`)
+
+#model EEA as a result of rainfall treatment with habitat*bracken
+
+#run glmms, using log function to account for right skewed distribution
+
+
+models <- split_dfs %>%
+  map(~ glmmTMB(`EEA per hour per g dry soil` ~ Habitat*Bracken*`Rainfall Intensity (ml)`, 
+                family = Gamma(link = "log"), 
+                data = .x))
+
+model <- models$Gluc
+#look at the summary
+summary(model)
+
+# Get slopes of Rainfall Intensity within each Habitat x Bracken combination,
+# for every model in the list
+trends_list <- models %>%
+  map(~ emtrends(.x, ~ Habitat * Bracken, var = "Rainfall Intensity (ml)"))
+
+# Get summaries with CIs and p-values for each
+trend_summaries <- trends_list %>%
+  map(~ summary(.x, infer = c(TRUE, TRUE)))
+
+#check converenge is not a problem - all 0s so we're fine
+map(models, ~ .x$fit$convergence)
+
+#check dispersion
+# Simulate residuals for every model in the list
+sim_outputs <- models %>%
+  map(~ simulateResiduals(fittedModel = .x, n = 1000))
+
+# Run the dispersion test on each simulation output
+dispersion_tests <- sim_outputs %>%
+  map(~ testDispersion(.x, plot = FALSE))
+
+# Pull out the key stats (statistic and p-value) into one tidy dataframe
+dispersion_summary <- imap_dfr(dispersion_tests, ~ data.frame(
+  Model      = .y,
+  Dispersion = .x$statistic,
+  p_value    = .x$p.value
+))
+#check dispersion of models - all looks good
+dispersion_summary
+
+#view results - suggest differences under bracken...
+trend_summaries
+
+#compare with models...reveal differences not significant
+models %>% map(~ Anova(.x, type = 2))
