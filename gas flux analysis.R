@@ -285,7 +285,7 @@ flux_avg$Bracken <- factor(flux_avg$Bracken)
 
 #assign a new variable, Pre/Post rainfall, to compare fluxes pre rainfall to fluxes post
 flux_before <- flux_avg %>%
-  filter(date < as.Date("2025-10-15"))
+  filter(date < as.Date("2025-10-14"))
 
 
 
@@ -478,7 +478,7 @@ AIC(m1, m2, m3, m4, m5)
 # model CO2 flux after rainfall 
 #filter for fluxes after rainfall added
 flux_after <- flux_avg %>%
-  filter(date > as.Date("2025-10-15"))
+  filter(date > as.Date("2025-10-14"))
 
 
 hist(flux_after$average_CO2_flux)
@@ -881,11 +881,6 @@ m5 <- glmmTMB(
 #linear model bascially the same as the others, apart from overfitted m5, so just use linear models for this bit
 AIC(m1, m2, m3, m4, m5)
 
-
-# model CO2 flux after rainfall 
-#filter for fluxes after rainfall added
-flux_after <- flux_avg %>%
-  filter(date > as.Date("2025-10-15"))
 
 
 hist(flux_after$average_CH4_flux)
