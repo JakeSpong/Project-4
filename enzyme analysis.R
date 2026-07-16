@@ -14,7 +14,7 @@ library(multcomp) #for significance letters
 library(purrr) # for mapping when running GLMMs
 library(coin) #for checking effect sizes of Wilcox test
 library(rstatix) #for wilcox test
-library(svglite)
+library(svglite) #to save figuers as svg
 
 library(tidyverse)
 library(here)
@@ -24,6 +24,18 @@ library(ggpubr)
 library(multcompView) #for significant difference letters
 library(scales)
 library(rlang)
+#### combine data needed for enzyme calculations NO  LONGER NEEDED ----
+field_moisture <- read_csv("Data/Soil moisture (field conditions).csv")
+enzyme_variables <- read_csv("Data/Enzyme Extraction Variables.csv")
+
+#join field moisture to enzyme varaibles
+enzyme_variables <- enzyme_variables %>%
+  left_join(field_moisture %>% select(`Sample ID`, `Soil moisture (% wet mass)`), by = "Sample ID")
+#calculate dry mass of soil
+enzyme_variables$`Dry soil mass (g)` <- (enzyme_variables$`Wet soil mass (g)` - (enzyme_variables$`Wet soil mass (g)`*(enzyme_variables$`Soil moisture (% wet mass)`/100)))
+
+#export as new datafile
+write.csv(enzyme_variables, "Data/Enzyme_variables.csv", row.names = FALSE)
 #### calculate soil moisture content at end of mesocosm experiment NO LONGER NEEDED ----
 
 #load in the moisture data, format data correctly

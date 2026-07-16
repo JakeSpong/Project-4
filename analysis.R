@@ -28,117 +28,6 @@ library(ggeffects)
 library(emmeans)
 library(DHARMa)
 
-#### pH ----
-pH <- read_csv("Data/pH.csv")
-
-
-#reorder the sites so they show up on the plot from west (LHS) to east (RHS)
-pH$Bracken <- factor(pH$Bracken, levels = c("Present", "Absent"))
-#reorder the habitats so they appear in the specified order
-pH$Habitat <- factor(pH$Habitat, levels = c("Rainfall", "Grassland", "Heathland"))
-
-#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
-pH_lys_bxp <- ggboxplot(pH, x = "Habitat", aes(y = `Lysate pH`), color = "Bracken", lwd = 0.75)  +
-  labs(
-    x = "Habitat",
-    y =  expression("Lysate pH")
-  ) + theme(
-    # Remove panel border
-    panel.border = element_blank(),  
-    # Remove panel grid lines
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    # Remove panel background
-    panel.background = element_blank(),
-    # Add axis line
-    axis.line = element_line(colour = "black", linewidth = 0.5),
-    #change colour and thickness of axis ticks
-    axis.ticks = element_line(colour = "black", linewidth = 0.5),
-    #change axis labels colour
-    axis.title.x = element_text(colour = "black"),
-    axis.title.y = element_text(colour = "black"),
-    #change tick labels colour
-    axis.text.x = element_text(colour = "black"),
-    axis.text.y = element_text(colour = "black"),
-  ) 
-
-show(pH_lys_bxp)  
-#save our plot
-ggsave(path = "Figures", paste0(Sys.Date(), "_pH-lysate.svg"), width = 10, height= 5, pH_lys_bxp)
-
-
-pH <- pH[-(1:3),]
-#boxplot the data. Use aes() with backticks (``) so avoid an error with our column name
-pH_bxp <- ggboxplot(pH, x = "Habitat", aes(y = `Field soil pH`), color = "Bracken", lwd = 0.75)  +
-  labs(
-    x = "Habitat",
-    y =  expression("Field soil pH")
-  ) + theme(
-    # Remove panel border
-    panel.border = element_blank(),  
-    # Remove panel grid lines
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    # Remove panel background
-    panel.background = element_blank(),
-    # Add axis line
-    axis.line = element_line(colour = "black", linewidth = 0.5),
-    #change colour and thickness of axis ticks
-    axis.ticks = element_line(colour = "black", linewidth = 0.5),
-    #change axis labels colour
-    axis.title.x = element_text(colour = "black"),
-    axis.title.y = element_text(colour = "black"),
-    #change tick labels colour
-    axis.text.x = element_text(colour = "black"),
-    axis.text.y = element_text(colour = "black"),
-  ) 
-
-show(pH_bxp)  
-
-hist(pH$`Field soil pH`)
-
-
-#trim off the rainfall data
-model_data <- pH_lys[-(1:3),]
-hist(model_data$`Lysate pH`)
-
-model <- glmmTMB(
-  `Lysate pH` ~ Bracken*Habitat,
-  data = model_data,
-  family = gaussian()
-)
-summary(model)
-
-#check for model overdispersion
-sim_res <- simulateResiduals(model)
-plot(sim_res)   # KS test + dispersion plot
-testDispersion(sim_res)
-testUniformity(sim_res) # checks overall residual uniformity
-testOutliers(sim_res)   # checks for outliers
-
-
-#Type 1 two-way anova using data from all sites
-anova <- aov(pH_lys$`Lysate pH` ~ pH_lys$Bracken*pH_lys$Habitat)
-#check homogeneity of variance
-plot(anova, 1)
-#levene test.  if p value < 0.05, there is evidence to suggest that the variance across groups is statistically significantly different.
-leveneTest(d$pH ~ d$Vegetation*d$Site)
-#check normality.  
-plot(anova, 2)
-#conduct shapiro-wilk test on ANOVA residuals to test for normality
-#extract the residuals
-aov_residuals <- residuals(object = anova)
-#run shapiro-wilk test.  if p > 0.05 the data is normal
-shapiro.test(x = aov_residuals)
-
-summary(anova)
-#tukey's test to identify significant interactions
-tukey <- TukeyHSD(anova)
-#print(tukey)
-#compact letter display
-cld <- multcompLetters4(anova, tukey)
-print(cld)
-
 
 #### Analyse flux data based on time segments- 29-09-2025 ----
 
@@ -5229,7 +5118,7 @@ co2_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average CO2 flux`, color = Ha
 #show the plot
 show(co2_avg_tms)
 #save our plot
-ggsave(path = "Figures", paste0(Sys.Date(), "_2A.svg"), width = 10, height= 5, co2_avg_tms)
+#ggsave(path = "Figures", paste0(Sys.Date(), "_2A.svg"), width = 10, height= 5, co2_avg_tms)
 
 # plot the ch4 flux over time
 ch4_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average CH4 flux`, color = Habitat_Bracken)) +
@@ -5251,7 +5140,7 @@ ch4_avg_tms <- ggplot(flux_avg, aes(x = date, y = `Average CH4 flux`, color = Ha
 show(ch4_avg_tms)
 
 #save our plot
-ggsave(path = "Figures", paste0(Sys.Date(), "_2b.svg"), width = 10, height= 5, ch4_avg_tms)
+#ggsave(path = "Figures", paste0(Sys.Date(), "_2b.svg"), width = 10, height= 5, ch4_avg_tms)
 
 
 #### model CO2 flux before and after rainfall ----
@@ -6897,16 +6786,5 @@ summary_model
 
 
 
-#### Enzyme analysis ----
-field_moisture <- read_csv("Data/Soil moisture (field conditions).csv")
-enzyme_variables <- read_csv("Data/Enzyme Extraction Variables.csv")
 
-#join field moisture to enzyme varaibles
-enzyme_variables <- enzyme_variables %>%
-  left_join(field_moisture %>% select(`Sample ID`, `Soil moisture (% wet mass)`), by = "Sample ID")
-#calculate dry mass of soil
-enzyme_variables$`Dry soil mass (g)` <- (enzyme_variables$`Wet soil mass (g)` - (enzyme_variables$`Wet soil mass (g)`*(enzyme_variables$`Soil moisture (% wet mass)`/100)))
-
-#export as new datafile
-write.csv(enzyme_variables, "Data/Enzyme_variables.csv", row.names = FALSE)
                                                                                 

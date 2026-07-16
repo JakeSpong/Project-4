@@ -19,6 +19,9 @@ library(glmmTMB)
 library(splines) #to allow for curved models
 library(ggeffects)
 library(emmeans)
+
+library(marginaleffects) #for converting model output to change in flux per day
+library(broom.mixed) #for emtrends
 library(DHARMa)
 
 #### generate maps of sample locations (Figure 1) ----
@@ -266,22 +269,17 @@ flux_avg <- flux_timeseries %>%
 
 #model only prior to the rainfall treatment
 
-
 # Create a combined grouping label
 flux_avg <- flux_avg %>%
   mutate(Habitat_Bracken = paste(Habitat, Bracken, sep = " - "))
-
 #rename the variables to avoid modelling issue with glmmTMB
 colnames(flux_avg)[colnames(flux_avg) == "Average CO2 flux"] <- "average_CO2_flux"
-
 #rename the variables to avoid modelling issue with glmmTMB
 colnames(flux_avg)[colnames(flux_avg) == "Average CH4 flux"] <- "average_CH4_flux"
-
-
 #convert dates to numbers
 flux_avg$date <- as.Date(flux_avg$date)
 flux_avg$date_num <- as.numeric(flux_avg$date)
-
+#ensure factors are coded properly
 flux_avg$Habitat <- factor(flux_avg$Habitat)
 flux_avg$Bracken <- factor(flux_avg$Bracken)
 
@@ -293,15 +291,24 @@ flux_before <- flux_avg %>%
 
 hist(flux_before$average_CO2_flux)
 
-
 #splines allows for curved model.  df = 1 is linear, increasing number increases curviness - check AIC comparisons below, and check visualisations, to determine best model
 co2_model <- glmmTMB(
   average_CO2_flux ~ ns(date_num, df = 1) * Habitat * Bracken,
   data = flux_before,
   family = gaussian()
 )
-
+# check residuals 
+simulateResiduals(co2_model, plot = TRUE)
+#check model outputs
 summary(co2_model)
+#get actual change in flux per day
+
+#convert model slope to change in flux per day
+co2_slopes_before <- slopes(
+  co2_model,
+  variables = "date_num",
+  by = c("Habitat", "Bracken")
+)
 
 
 #create prediction data
@@ -468,10 +475,6 @@ m5 <- glmmTMB(
 #linear model bascially the same as the others, apart from overfitted m5, so just use linear models for this bit
 AIC(m1, m2, m3, m4, m5)
 
-#interpret the model
-
-summary(co2_model)
-
 # model CO2 flux after rainfall 
 #filter for fluxes after rainfall added
 flux_after <- flux_avg %>%
@@ -487,6 +490,22 @@ co2_model <- glmmTMB(
   data = flux_after,
   family = gaussian()
 )
+# check residuals 
+simulateResiduals(co2_model, plot = TRUE)
+
+#check model outputs
+summary(co2_model)
+#get actual change in flux per day
+
+#convert model slope to change in flux per day
+co2_slopes_after <- slopes(
+  co2_model,
+  variables = "date_num",
+  by = c("Habitat", "Bracken")
+)
+#show the change in slopes per day
+summary(slopes)
+
 
 
 #create prediction data
@@ -683,7 +702,20 @@ ch4_model <- glmmTMB(
   family = gaussian()
 )
 
-summary(co2_model)
+# check residuals 
+simulateResiduals(ch4_model, plot = TRUE)
+#check model outputs
+summary(ch4_model)
+#get actual change in flux per day
+
+#convert model slope to change in flux per day
+ch4_slopes_before <- slopes(
+  ch4_model,
+  variables = "date_num",
+  by = c("Habitat", "Bracken")
+)
+
+
 
 #create prediction data
 newdatbefore <- expand.grid(
@@ -849,9 +881,6 @@ m5 <- glmmTMB(
 #linear model bascially the same as the others, apart from overfitted m5, so just use linear models for this bit
 AIC(m1, m2, m3, m4, m5)
 
-#interpret the model
-
-summary(ch4_model)
 
 # model CO2 flux after rainfall 
 #filter for fluxes after rainfall added
@@ -868,6 +897,16 @@ ch4_model <- glmmTMB(
   data = flux_after,
   family = gaussian()
 )
+# check residuals 
+simulateResiduals(ch4_model, plot = TRUE)
+
+#convert model slope to change in flux per day
+ch4_slopes_after <- slopes(
+  ch4_model,
+  variables = "date_num",
+  by = c("Habitat", "Bracken")
+)
+
 
 #create prediction data
 newdatafter <- expand.grid(
@@ -1503,7 +1542,7 @@ emtrends(ch4_before_rainfall_model,
          var = "date_num")
 
 
-#### compare before and after models - NEEDS PRIOR TWO TABS TO WORK ----
+#### compare before and after models - NEEDS PRIOR TWO TABS TO WORK -   don't think we need this now, not included in papr results ----
 
 # Create combined before/after dataframe
 flux_combined <- bind_rows(
@@ -1521,6 +1560,9 @@ co2_period_model <- glmmTMB(
   family = gaussian()
 )
 
+# check residuals - looks great.  Well done me.
+simulateResiduals(co2_period_model, plot = TRUE)
+
 # Compare average flux before vs after, per Habitat x Bracken
 emmeans(co2_period_model,
         pairwise ~ Period | Habitat * Bracken,
@@ -1534,15 +1576,18 @@ emtrends(co2_period_model,
 
 
 
-#check data distribution
-hist(flux_combined$average_CO2_flux)
+#check data distribution - skewed, so cannot use gaussian
+hist(flux_combined$average_CH4_flux)
 
+#try t_family...
 ch4_period_model <- glmmTMB(
   average_CH4_flux ~ ns(date_num, df = 1) * Habitat * Bracken * Period,
   data = flux_combined,
-  family = gaussian()
+  family = t_family()
 )
 
+# residuals perfect now we are using t_family()
+simulateResiduals(ch4_period_model, plot = TRUE)
 
 emmeans(ch4_period_model,
         pairwise ~ Period | Habitat * Bracken,
@@ -1553,3 +1598,4 @@ emmeans(ch4_period_model,
 emtrends(ch4_period_model,
          pairwise ~ Period | Habitat * Bracken,
          var = "date_num")
+
