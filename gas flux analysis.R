@@ -1105,7 +1105,7 @@ flux_avg$Bracken <- factor(flux_avg$Bracken)
 
 #gas fluxes after rainfall treatment applied
 flux_after <- flux_avg %>%
-  filter(date > as.Date("2025-10-15"))
+  filter(date > as.Date("2025-10-14"))
 
 hist(flux_after$average_CO2_flux)
 
@@ -1180,78 +1180,34 @@ shape_vals <- c("Absent" = 17,  # triangle
 line_vals <- c("Absent" = "dashed",
                "Present" = "solid")
 
-
-
-
-co2_after <- ggplot() +
-  
+#plot showing flux for each rainfall treatment
+co2_after <- ggplot() + 
   # observed data
-  geom_point(
-    data = flux_after,
-    aes(
-      x = date,
-      y = average_CO2_flux,
-      colour = rainfall
-    ),
-    alpha = 0.8,
-    size = 2
-  ) +
-  
-  # model ribbon
-  geom_ribbon(
-    data = newdatafter,
-    aes(
-      x = date,
-      ymin = lower,
-      ymax = upper,
-      fill = rainfall,
-      group = rainfall
-    ),
-    alpha = 0.15,
-    colour = NA
-  ) +
-  
-  # model lines
-  geom_line(
-    data = newdatafter,
-    aes(
-      x = date,
-      y = fit,
-      colour = rainfall,
-      group = rainfall
-    ),
-    linewidth = 1
-  ) +
-  
-  # four panels: one per Habitat x Bracken combination
+  geom_point(data = flux_after, aes(x = date, y = average_CO2_flux, colour = rainfall), alpha = 0.8, size = 2) +
+    # model ribbon
+  geom_ribbon(data = newdatafter, aes(x = date, ymin = lower, ymax = upper, fill = rainfall, group = rainfall), alpha = 0.15, colour = NA) +
+    # model lines
+  geom_line(data = newdatafter, aes(x = date, y = fit, colour = rainfall, group = rainfall), linewidth = 1) +
+    # four panels: one per Habitat x Bracken combination
   facet_grid(Bracken ~ Habitat) +
+    # scales
+  scale_colour_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   
-  # scales
-  scale_colour_viridis_d(
-    name = "Rainfall (ml)",
-    option = "plasma",
-    direction = -1
-  ) +
-  
-  scale_fill_viridis_d(
-    name = "Rainfall (ml)",
-    option = "plasma", direction = -1
-  ) +
+  scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   
   scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
   
   theme_bw() +
   
-  labs(
-    x = "Date",
-    y = NULL,
+  labs(x = "Date",
+    y = expression("Mean CO"[2] * " flux (" * mu * "mol" ~ s^{-1} ~ m^{-2} * ")"),
     colour = "Rainfall (ml)",
     fill = "Rainfall (ml)"
   )
 #show the figure
 show(co2_after)
 #save the figure
-#ggsave("Figures/co2_rainfall_models.svg", plot = co2_after, width = 10, height = 6, dpi = 300)
+ggsave("Figures/co2_rainfall_models.svg", plot = co2_after, width = 10, height = 6, dpi = 300)
 
 
 #add for CH4
@@ -1278,20 +1234,20 @@ newdatafter_ch4$upper <- predafter_ch4$fit + 1.96 * predafter_ch4$se.fit
 
 # Now plot using newdatafter_ch4
 ch4_after <- ggplot() +
-  
+  #data points
   geom_point(
     data = flux_after,
     aes(x = date, y = average_CH4_flux, colour = rainfall),
     alpha = 0.8, size = 2
   ) +
-  
+  #the model ribbon
   geom_ribbon(
     data = newdatafter_ch4,
     aes(x = date, ymin = lower, ymax = upper,
         fill = rainfall, group = rainfall),
     alpha = 0.15, colour = NA
   ) +
-  
+  #model line
   geom_line(
     data = newdatafter_ch4,
     aes(x = date, y = fit, colour = rainfall, group = rainfall),
@@ -1299,29 +1255,31 @@ ch4_after <- ggplot() +
   ) +
   
   facet_grid(Bracken ~ Habitat) +
-  coord_cartesian(ylim = c(-2.0, 0.5)) +
+  coord_cartesian(ylim = c(-3.0, 0.7)) +
   scale_colour_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
   theme_bw() +
-  labs(x = "Date", y = NULL, colour = "Rainfall (ml)", fill = "Rainfall (ml)")
+  labs(x = "Date", y = expression("Mean CH"[4] * " flux (nmol" ~ s^{-1} ~ m^{-2} * ")"), colour = "Rainfall (ml)", fill = "Rainfall (ml)")
 
 show(ch4_after)
 #save the figure
-#ggsave("Figures/ch4_rainfall_models.svg", plot = ch4_after, width = 10, height = 6, dpi = 300)
+ggsave("Figures/ch4_rainfall_models.svg", plot = ch4_after, width = 10, height = 6, dpi = 300)
+
+
 # check to see if rainfaill intensity changes the model slope (i.e. co2 flux over time)
-emtrends(co2_rainfall_model, 
+emtrends(co2_after_rainfall_model, 
          pairwise ~ rainfall | Habitat * Bracken, 
          var = "date_num")
 
 # check to see if rainfaill intensity changes the model slope (i.e. ch4 flux over time)
-emtrends(ch4_rainfall_model, 
+emtrends(ch4_after_rainfall_model, 
          pairwise ~ rainfall | Habitat * Bracken, 
          var = "date_num")
 #### model differences prior to rainfall addition for CO2 (supp FIGURE 1) and CH4 (supp Figure 2) NEEDS PRIOR TAB TO WORK ----
 #gas fluxes after rainfall treatment applied
 flux_before <- flux_avg %>%
-  filter(date <= as.Date("2025-10-15"))
+  filter(date < as.Date("2025-10-14"))
 
 hist(flux_before$average_CO2_flux)
 
@@ -1460,14 +1418,14 @@ co2_before <- ggplot() +
   
   labs(
     x = "Date",
-    y = NULL,
+    y = expression("Mean CO"[2] * " flux (" * mu * "mol" ~ s^{-1} ~ m^{-2} * ")"),
     colour = "Rainfall (ml)",
     fill = "Rainfall (ml)"
   )
 #show the figure
 show(co2_before)
 #save the figure
-#ggsave("Figures/before-rain-applied_co2_rainfall_models.svg", plot = co2_before, width = 10, height = 6, dpi = 300)
+ggsave("Figures/before-rain-applied_co2_rainfall_models.svg", plot = co2_before, width = 10, height = 6, dpi = 300)
 
 
 #add for CH4
@@ -1520,7 +1478,7 @@ ch4_before <- ggplot() +
   scale_fill_viridis_d(name = "Rainfall (ml)", option = "plasma", direction = -1) +
   scale_x_date(date_breaks = "3 days", date_labels = "%d %b") +
   theme_bw() +
-  labs(x = "Date", y = NULL, colour = "Rainfall (ml)", fill = "Rainfall (ml)")
+  labs(x = "Date", y = expression("Mean CH"[4] * " flux (nmol" ~ s^{-1} ~ m^{-2} * ")"), colour = "Rainfall (ml)", fill = "Rainfall (ml)")
 
 show(ch4_before)
 #save the figure
