@@ -725,101 +725,48 @@ normality_check <- df_wide %>%
 #3 not normal, so use wilcox for consistency of tests
 normality_check
 
-#pivot back to long
-df_long <- df_wide %>%
+# t test - as most distributions are normal...
+t_results <- df_wide %>%
   pivot_longer(
     cols = c(Start, End),
     names_to = "TimePoint",
-    values_to = "EEA per hour per g dry soil"
+    values_to = "EEA"
   ) %>%
-  mutate(TimePoint = factor(TimePoint, levels = c("Start", "End")))
-#run the wilcox tests
-wilcox_results <- df_long %>%
   group_by(SampleType, Habitat, Bracken) %>%
-  rstatix::wilcox_test(`EEA per hour per g dry soil` ~ TimePoint, paired = TRUE) %>%
+  t_test(EEA ~ TimePoint, paired = TRUE) %>%
   group_by(SampleType) %>%
-  rstatix::adjust_pvalue(method = "BH") %>%
-  rstatix::add_significance()
-#view results
-wilcox_results
-#check effect sizes
-effect_sizes <- df_long %>%
-  group_by(SampleType, Habitat, Bracken) %>%
-  rstatix::wilcox_effsize(`EEA per hour per g dry soil` ~ TimePoint, paired = TRUE)
-#view effect sizes
-effect_sizes
-
-
-
-
-# Back to long format for rstatix (Start/End as levels of TimePoint again)
-df_wide_long <- df_wide %>%
-  pivot_longer(cols = c(Start, End), names_to = "TimePoint", values_to = "Activity") %>%
-  mutate(TimePoint = factor(TimePoint, levels = c("Start", "End")))
-
-#check normality of differences for each enzyme
-results_wide %>%
-  group_by(SampleType) %>%
-  summarise(shapiro_p = shapiro.test(End - Start)$p.value)
-
-#differences are not normal, so use a wilcox test, not t test
-df_wide_long <- results_wide %>%
-  pivot_longer(cols = c(Start, End), names_to = "TimePoint", values_to = "Activity")
-
-#compute the wilcox test
-df_wide_long %>%
-  group_by(SampleType) %>%
-  rstatix::wilcox_test(Activity ~ TimePoint, paired = TRUE) %>%
   adjust_pvalue(method = "BH") %>%
   add_significance()
-#check effect size too
-df_wide_long %>%
+#...shows no significant differences
+t_results
+
+
+
+#doing a wilcoxon (as some distrbutions not normal) with benjamini hochberg correction for multiple comparisions, along with effect sizes (non significant p with moderate/large effect size indicuates a potentially meaningful change that the sample size does not have enough power to detect)
+wilcox_results_full <- df_wide %>%
+  pivot_longer(
+    cols = c(Start, End),
+    names_to = "TimePoint",
+    values_to = "EEA"
+  ) %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  wilcox_test(EEA ~ TimePoint, paired = TRUE) %>%
   group_by(SampleType) %>%
-  wilcox_effsize(Activity ~ TimePoint, paired = TRUE)
-
-
-ggplot(df_wide_long, aes(x = TimePoint, y = Activity)) +
-  geom_boxplot(aes(fill = TimePoint), width = 0.4, alpha = 0.5, outlier.shape = NA) +
-  geom_line(aes(group = BaseID), color = "grey50", alpha = 0.5) +
-  geom_point(aes(color = TimePoint), size = 2, alpha = 0.7) +
-  facet_wrap(~ SampleType, scales = "free_y") +
-  scale_fill_manual(values = c("Start" = "#4C72B0", "End" = "#DD8452")) +
-  scale_color_manual(values = c("Start" = "#4C72B0", "End" = "#DD8452")) +
-  labs(
-    title = "Paired enzyme activity: Start vs End",
-    x = NULL,
-    y = "Activity"
-  ) +
-  theme_bw(base_size = 13) +
-  theme(
-    legend.position = "none",
-    strip.background = element_rect(fill = "grey90"),
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  adjust_pvalue(method = "BH") %>%
+  add_significance() %>%
+  left_join(
+    df_wide %>%
+      pivot_longer(
+        cols = c(Start, End),
+        names_to = "TimePoint",
+        values_to = "EEA"
+      ) %>%
+      group_by(SampleType, Habitat, Bracken) %>%
+      wilcox_effsize(EEA ~ TimePoint, paired = TRUE),
+    by = c("SampleType", "Habitat", "Bracken")
   )
 
-#visualise
-sample_comparisons <- ggplot(df_long, aes(x = TimePoint, y = `EEA per hour per g dry soil`)) +
-  geom_line(aes(group = BaseID), color = "grey60", alpha = 0.5) +
-  geom_point(aes(color = Bracken), size = 2, alpha = 0.8) +
-  facet_grid(SampleType ~ Habitat + Bracken, scales = "free_y") +
-  scale_color_manual(values = c("Absent" = "sienna", "Present" = "limegreen")) +
-  labs(
-    x = NULL,
-    y = "EEA per hour per g dry soil",
-    color = "Bracken"
-  ) +
-  theme_bw(base_size = 12) +
-  theme(
-    legend.position = "top",
-    strip.background = element_rect(fill = "grey90"),
-    strip.text = element_text(face = "bold", size = 9),
-    panel.grid.minor = element_blank()
-  )
-show(sample_comparisons)
-#save the figure
-ggsave("Figures/EEA_sample-start-vs-end.svg", plot = sample_comparisons, 
-       width = 10, height = 7, dpi = 300)
+wilcox_results_full
 
 
 
