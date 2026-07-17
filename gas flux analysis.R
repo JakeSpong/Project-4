@@ -1207,7 +1207,7 @@ co2_after <- ggplot() +
 #show the figure
 show(co2_after)
 #save the figure
-ggsave("Figures/co2_rainfall_models.svg", plot = co2_after, width = 10, height = 6, dpi = 300)
+#ggsave("Figures/co2_rainfall_models.svg", plot = co2_after, width = 10, height = 6, dpi = 300)
 
 
 #add for CH4
@@ -1264,7 +1264,7 @@ ch4_after <- ggplot() +
 
 show(ch4_after)
 #save the figure
-ggsave("Figures/ch4_rainfall_models.svg", plot = ch4_after, width = 10, height = 6, dpi = 300)
+#ggsave("Figures/ch4_rainfall_models.svg", plot = ch4_after, width = 10, height = 6, dpi = 300)
 
 
 # check to see if rainfaill intensity changes the model slope (i.e. co2 flux over time)
