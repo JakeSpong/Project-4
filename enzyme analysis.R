@@ -785,74 +785,149 @@ results <- results %>%
 
 # Split by Condition first
 mesocosm_df <- results %>% filter(Condition == "Mesocosm")
+#just the data we acutally need
+df <- mesocosm_df[c(1,9,20,22,23, 35)]
 
-# convert longitude, latitude to sf object for initial field samples
-sf_data <- st_as_sf(mesocosm_df, coords = c("LongitudeE", "LatitudeN"), crs = 4326)
-# project to UTM (example: zone depends on your location)
-sf_data <- st_transform(sf_data, crs = 32630)  # UK example
-# extract projected coords
-coords <- st_coordinates(sf_data)
-#coordinates in m in the Universal Transverse Meractor cartesian coordinate system
-mesocosm_df$x <- coords[,1]
-mesocosm_df$y <- coords[,2]
+#see if EEA differs with response to rainfall intensity, within each treatment
+results_lm <- df %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  nest() %>%
+  mutate(
+    n_obs    = map_dbl(data, nrow),
+    model    = map(data, ~lm(`EEA per hour per g dry soil` ~ `Rainfall Intensity (ml)`, data = .x)),
+    tidy_out = map(model, tidy),
+    glance_out = map(model, glance)
+  )
 
-#subset out for each enzyme
-#first split out data for each enzyme
-sample_types <- unique(mesocosm_df$SampleType)
-split_dfs <- mesocosm_df %>%
-  group_by(SampleType) %>%
-  group_split() %>%
-  setNames(sample_types)
+#extract results with p values, r2 so we can see if there are significant differences, and how well the models fit
+combined_results <- df %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  nest() %>%
+  mutate(
+    n_obs         = map_dbl(data, nrow),
+    model         = map(data, ~lm(`EEA per hour per g dry soil` ~ `Rainfall Intensity (ml)`, data = .x)),
+    tidy_out      = map(model, tidy),
+    r.squared     = map_dbl(model, ~glance(.x)$r.squared),
+    adj.r.squared = map_dbl(model, ~glance(.x)$adj.r.squared)
+  ) %>%
+  unnest(tidy_out) %>%
+  filter(term == "`Rainfall Intensity (ml)`") %>%
+  select(SampleType, Habitat, Bracken, n_obs, 
+         slope = estimate, std.error, statistic, p.value, 
+         r.squared, adj.r.squared) %>%
+  ungroup() %>%
+  mutate(p.adj = p.adjust(p.value, method = "BH")) %>%
+  arrange(p.adj)
 
-#check the data distripution for each enzyme - they all look right skewed!
-hist(split_dfs[["Xylo"]]$`EEA per hour per g dry soil`)
 
-#model EEA as a result of rainfall treatment with habitat*bracken
+# build a label table from combined_results, so we can show adj r2 and p values on the plots
+labels_df <- combined_results %>%
+  mutate(
+    label = paste0(
+      "adj. R\u00b2 = ", sprintf("%.2f", adj.r.squared),
+      "\np = ", sprintf("%.3f", p.value)
+    )
+  )
+#plot the regressions
+eea_rainfall <- ggplot(df, aes(x = `Rainfall Intensity (ml)`, y = `EEA per hour per g dry soil`)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "steelblue") +
+  facet_grid(SampleType ~ Habitat + Bracken, scales = "free_y") +
+  geom_text(
+    data = labels_df,
+    aes(x = -Inf, y = Inf, label = label),
+    hjust = -0.1, vjust = 1.5,
+    size = 3, color = "black",
+    inherit.aes = FALSE
+  ) +
+  theme_bw() +
+  labs(x = "Rainfall Intensity (ml)", y = "EEA per hour per g dry soil")
+show(eea_rainfall)
 
-#run glmms, using log function to account for right skewed distribution
+#save this figure for suuplementary
+ggsave("Figures/EEA_per_rainfall treatment.svg", plot = eea_rainfall, 
+       width = 10, height = 7, dpi = 300)
 
 
-models <- split_dfs %>%
-  map(~ glmmTMB(`EEA per hour per g dry soil` ~ Habitat*Bracken*`Rainfall Intensity (ml)`, 
-                family = Gamma(link = "log"), 
-                data = .x))
+#check model assumptions
+library(tidyverse)
+library(broom)
+library(car)      # for Breusch-Pagan / Levene-type tests
+library(lmtest)   # bptest()
+#Extract residuals and fitted values for every group
+results_lm <- df %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  nest() %>%
+  mutate(
+    n_obs      = map_dbl(data, nrow),
+    model      = map(data, ~lm(`EEA per hour per g dry soil` ~ `Rainfall Intensity (ml)`, data = .x)),
+    augmented  = map(model, augment)   # gives .resid, .fitted per observation
+  )
+#check for normality
+normality_checks <- results_lm %>%
+  mutate(
+    shapiro = map(model, ~shapiro.test(residuals(.x))),
+    shapiro_stat = map_dbl(shapiro, "statistic"),
+    shapiro_p    = map_dbl(shapiro, "p.value")
+  ) %>%
+  select(SampleType, Habitat, Bracken, n_obs, shapiro_stat, shapiro_p) %>%
+  ungroup() %>%
+  mutate(normal_ok = shapiro_p > 0.05)   # TRUE = fail to reject normality (i.e. looks OK)
 
-model <- models$Gluc
-#look at the summary
-summary(model)
+normality_checks %>% arrange(shapiro_p)
 
-# Get slopes of Rainfall Intensity within each Habitat x Bracken combination,
-# for every model in the list
-trends_list <- models %>%
-  map(~ emtrends(.x, ~ Habitat * Bracken, var = "Rainfall Intensity (ml)"))
+#check for homogeneity of variance
+homogeneity_checks <- results_lm %>%
+  mutate(
+    bp = map(model, ~bptest(.x)),
+    bp_stat = map_dbl(bp, "statistic"),
+    bp_p    = map_dbl(bp, "p.value")
+  ) %>%
+  select(SampleType, Habitat, Bracken, n_obs, bp_stat, bp_p) %>%
+  ungroup() %>%
+  mutate(homoscedastic_ok = bp_p > 0.05)
 
-# Get summaries with CIs and p-values for each
-trend_summaries <- trends_list %>%
-  map(~ summary(.x, infer = c(TRUE, TRUE)))
+homogeneity_checks %>% arrange(bp_p)
 
-#check converenge is not a problem - all 0s so we're fine
-map(models, ~ .x$fit$convergence)
+#combine checks into one table
+diagnostic_summary <- normality_checks %>%
+  left_join(homogeneity_checks, by = c("SampleType", "Habitat", "Bracken", "n_obs")) %>%
+  mutate(
+    any_violation = !normal_ok | !homoscedastic_ok
+  ) %>%
+  select(SampleType, Habitat, Bracken, n_obs, 
+         shapiro_p, normal_ok, bp_p, homoscedastic_ok, any_violation) %>%
+  arrange(desc(any_violation), shapiro_p)
+#check which samples violate which assumptoins
+diagnostic_summary %>%
+  mutate(across(where(is.numeric), ~round(.x, 4))) %>%
+  print(n = Inf)
 
-#check dispersion
-# Simulate residuals for every model in the list
-sim_outputs <- models %>%
-  map(~ simulateResiduals(fittedModel = .x, n = 1000))
+#more robust modelling
+library(sandwich)
+library(lmtest)
+library(sandwich)
+library(lmtest)
 
-# Run the dispersion test on each simulation output
-dispersion_tests <- sim_outputs %>%
-  map(~ testDispersion(.x, plot = FALSE))
+robust_se_check <- results_lm %>%
+  mutate(
+    robust_test = map(model, ~coeftest(.x, vcov = vcovHC(.x, type = "HC3"))),
+    robust_p    = map_dbl(robust_test, ~.x["`Rainfall Intensity (ml)`", "Pr(>|t|)"]),
+    robust_se   = map_dbl(robust_test, ~.x["`Rainfall Intensity (ml)`", "Std. Error"])
+  ) %>%
+  select(SampleType, Habitat, Bracken, robust_se, robust_p) %>%
+  ungroup()
 
-# Pull out the key stats (statistic and p-value) into one tidy dataframe
-dispersion_summary <- imap_dfr(dispersion_tests, ~ data.frame(
-  Model      = .y,
-  Dispersion = .x$statistic,
-  p_value    = .x$p.value
-))
-#check dispersion of models - all looks good
-dispersion_summary
+comparison <- combined_results %>%
+  left_join(robust_se_check, by = c("SampleType", "Habitat", "Bracken")) %>%
+  left_join(diagnostic_summary %>% select(SampleType, Habitat, Bracken, any_violation),
+            by = c("SampleType", "Habitat", "Bracken")) %>%
+  select(SampleType, Habitat, Bracken, any_violation, 
+         std.error, p.value, robust_se, robust_p) %>%
+  mutate(
+    p_flip = (p.value < 0.05) != (robust_p < 0.05),   # TRUE if significance conclusion changes
+    across(where(is.numeric), ~round(.x, 4))
+  ) %>%
+  arrange(desc(p_flip), p.value)
 
-#view results - suggest differences under bracken...
-trend_summaries
-
-#compare with models...reveal differences not significant
-models %>% map(~ Anova(.x, type = 2))
+comparison %>% print(n = Inf)
