@@ -56,20 +56,37 @@ d$Habitat <- factor(d$Habitat, levels = c("Heathland", "Grassland"), labels = c(
 df_PCA <- d[, -c(1, 2, 3, 8, 9)]
 #ensure all columns are numeric
 df_PCA[] <- lapply(df_PCA, as.numeric)
-
+colnames(df_PCA) <- c("elevation", "latitude", "longitude", "pH", "CO2 flux", "CH4 flux", "soil moisture", "Gluc", "NAG", "Phos", "Xylo")
 library(stats) #for prcomp, for the PCA
 PCA <- prcomp(df_PCA, retx = TRUE, center = TRUE, scale. = TRUE, tol = NULL, rank. = NULL)
 library(ggbiplot)
 
-ggbiplot(PCA) +
-  geom_point(aes(colour = d$Bracken, shape = d$Habitat, size = 2.0)) +
-  labs(colour = "Bracken") +
+# Percentage variance explained
+var_exp <- round(100 * PCA$sdev^2 / sum(PCA$sdev^2), 1)
+
+biplot <- ggbiplot(PCA, varname.size = 4) +
+  geom_point(aes(colour = d$Habitat,
+                 shape = d$Bracken),
+             size = 4.0) +
+  scale_colour_manual(values = c(
+    "Grassland" = "#1b9e77",
+    "Heathland" = "#AA4499"
+  )) +
+  scale_shape_manual(values = c(
+    "Absent" = 17,   # filled triagngle
+    "Present" = 16    # filled circle
+  )) +  labs(
+    x = paste0("PC1 (", var_exp[1], "%)"),
+    y = paste0("PC2 (", var_exp[2], "%)"),
+    colour = "Habitat",
+    shape = "Bracken") +
   theme_bw()
 
+show(biplot)
+#save the figure
+ggsave("Figures/PCA_biplot.svg", plot = biplot, width = 8, height = 6, units = "in", device = "svg")
 
-
-
-#dbRDA working but pointless...we wnt PCA
+#### #dbRDA working but pointless...we wnt PCA ----
 
 #d <- as.matrix(d)
 #replace row index with sample names
