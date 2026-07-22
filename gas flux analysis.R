@@ -1070,19 +1070,20 @@ flux_timeseries <- flux_data[c(1,2, 12, 13, 32, 33, 34)]
 flux_timeseries <- flux_timeseries %>%
   mutate(date = as.Date(start_time))
 
+
 #group by date, Habitat, and Bracken, and calculate means
 flux_avg <- flux_timeseries %>%
-  group_by(date, Habitat, Bracken, `Rainfall volume (ml)`) %>%
-  summarise(
-    `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
-    `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
-    `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
-    `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
-    .groups = 'drop'
-  )
+group_by(date, Habitat, Bracken, `Rainfall volume (ml)`) %>%
+summarise(
+  `Average CO2 flux` = mean(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+  `SD CO2 flux` = sd(`CO2 flux (micromol CO2 per s per m2)`, na.rm = TRUE),
+  `Average CH4 flux` = mean(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+  `SD CH4 flux` = sd(`CH4 flux (nmol CH4 per s per m2)`, na.rm = TRUE),
+  .groups = 'drop'
+ )
+
 
 #model only prior to the rainfall treatment
-
 
 # Create a combined grouping label
 flux_avg <- flux_avg %>%
