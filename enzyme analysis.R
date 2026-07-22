@@ -931,3 +931,57 @@ comparison <- combined_results %>%
   arrange(desc(p_flip), p.value)
 
 comparison %>% print(n = Inf)
+
+#previously significvant result no longer significant, one that wasn't before now is...so try bootstrapping
+
+library(broom)
+
+boot_slope <- function(data, n_boot = 5000) {
+  slopes <- replicate(n_boot, {
+    boot_data <- data[sample(nrow(data), replace = TRUE), ]
+    coef(lm(`EEA per hour per g dry soil` ~ `Rainfall Intensity (ml)`, data = boot_data))[2]
+  })
+  tibble(
+    boot_mean = mean(slopes),
+    ci_lower  = quantile(slopes, 0.025),
+    ci_upper  = quantile(slopes, 0.975)
+  )
+}
+
+flip_groups <- df %>%
+  semi_join(
+    tibble(SampleType = c("NAG", "Xylo"), 
+           Habitat = c("Grassland", "Grassland"), 
+           Bracken = c("Absent", "Absent")),
+    by = c("SampleType", "Habitat", "Bracken")
+  )
+
+set.seed(123)  # reproducibility
+boot_results <- flip_groups %>%
+  group_by(SampleType, Habitat, Bracken) %>%
+  group_modify(~boot_slope(.x)) %>%
+  ungroup()
+
+boot_results
+#boostrapping shows the xylo result CIs as straddling 0 - so not significant.  Try a BCa (bias-corrected and accelerated) bootstrap instead of the basic percentile method, which corrects for skew and bias in the resampling distribution 
+
+library(boot)
+
+boot_fn <- function(data, indices) {
+  d <- data[indices, ]
+  coef(lm(`EEA per hour per g dry soil` ~ `Rainfall Intensity (ml)`, data = d))[2]
+}
+
+# NAG, Grassland, Absent
+nag_data <- df %>% filter(SampleType == "NAG", Habitat == "Grassland", Bracken == "Absent")
+set.seed(123)
+boot_nag <- boot(nag_data, boot_fn, R = 5000)
+boot.ci(boot_nag, type = "bca")
+
+# Xylo, Grassland, Absent
+xylo_data <- df %>% filter(SampleType == "Xylo", Habitat == "Grassland", Bracken == "Absent")
+set.seed(123)
+boot_xylo <- boot(xylo_data, boot_fn, R = 5000)
+boot.ci(boot_xylo, type = "bca")
+
+#xylo not significant again, just the NAG grassland absent result we had to start with - hurrah!
